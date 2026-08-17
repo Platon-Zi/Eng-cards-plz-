@@ -1,0 +1,14 @@
+{
+  "name": "leitner-flashcards",
+  "version": "0.1.0",
+  "description": "Offline Leitner flashcard system for English learning",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0"
+  }
+}

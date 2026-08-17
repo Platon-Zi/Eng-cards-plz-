@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leitner Cards - Offline English Flashcards</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="dark-theme">
+  <!-- Titlebar for custom window drag -->
+  <div class="window-titlebar">
+    <div class="app-brand">
+      <span class="app-icon">📦</span>
+      <span class="app-name">Leitner English</span>
+    </div>
+  </div>
+
+  <div class="app-container">
+    <!-- Navigation Sidebar -->
+    <aside class="sidebar">
+      <div class="nav-header">
+        <h2>Vocabulary</h2>
+        <span class="offline-badge">⚡ 100% Offline</span>
+        <div class="streak-badge" id="streak-badge" style="margin-top: 12px; width: fit-content;">
+          <span class="streak-icon">🔥</span>
+          <span class="streak-count" id="dash-streak">0</span>
+          <span class="streak-label">day streak</span>
+        </div>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-screen="dashboard">
+          <span class="icon">🏠</span> Dashboard
+        </button>
+        <button class="nav-btn" data-screen="add-words">
+          <span class="icon">➕</span> Add Words
+        </button>
+        <button class="nav-btn" data-screen="dictionary">
+          <span class="icon">📚</span> My Dictionary
+        </button>
+        <button class="nav-btn" data-screen="groups">
+          <span class="icon">📁</span> Groups & Packs
+        </button>
+        <button class="nav-btn" data-screen="statistics">
+          <span class="icon">📊</span> Statistics
+        </button>
+      </nav>
+
+      <div class="quick-train-box">
+        <h4>Data Backup & Safety</h4>
+        <button class="btn btn-secondary btn-block" id="btn-backup-json" style="margin-bottom: 8px;">
+          💾 Save Backup (JSON)
+        </button>
+        <button class="btn btn-secondary btn-block" id="btn-copy-english-list" style="margin-bottom: 8px;">
+          📋 Copy English List
+        </button>
+        <button class="btn btn-secondary btn-block" id="btn-restore-json">
+          📤 Restore Backup
+        </button>
+        <input type="file" id="input-restore-json-file" accept=".json" hidden>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="content-area">
+
+      <!-- SCREEN 1: DASHBOARD -->
+      <section id="screen-dashboard" class="screen active">
+
+        <!-- Mode Selectors & Action Buttons (Moved to Top) -->
+        <div class="action-grid">
+          <div class="main-action">
+            <button class="btn btn-hero btn-hero-practice" id="btn-hero-start-practice">
+              <span class="hero-icon">🚀</span>
+              <div class="hero-text">
+                <span class="hero-title">Practice (Review)</span>
+                <span class="hero-sub" id="hero-due-text">Smart review for Boxes 1-5</span>
+              </div>
+            </button>
+          </div>
+          <div class="main-action">
+            <button class="btn btn-hero btn-hero-learn" id="btn-hero-start-learn">
+              <span class="hero-icon">🏦</span>
+              <div class="hero-text">
+                <span class="hero-title">Learn New Words</span>
+                <span class="hero-sub" id="hero-learn-text">Study words from the Bank</span>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <div class="secondary-actions-row">
+          <h4>Other Formats:</h4>
+          <div class="mode-buttons">
+            <button class="btn btn-secondary mode-btn" data-mode="eng-rus">
+              🇬🇧 ENG ➔ RUS
+            </button>
+            <button class="btn btn-secondary mode-btn" data-mode="rus-eng">
+              🇷🇺 RUS ➔ ENG
+            </button>
+            <button class="btn btn-secondary mode-btn" data-mode="mixed">
+              🔀 Mixed (Warmup)
+            </button>
+          </div>
+        </div>
+
+        <!-- Leitner Boxes Visualizer -->
+        <div class="section-card boxes-section">
+          <div class="section-header">
+            <h3>📦 Leitner Box System</h3>
+            <span class="info-tag">Two-Step Verification (ENG↔RUS)</span>
+          </div>
+          <div class="boxes-container">
+            
+            <div class="box-row box-row-bank" data-box="0">
+              <div class="box-meta">
+                <span class="box-number bank">🏦</span>
+                <div class="box-title">
+                  <strong>Word Bank (To Learn)</strong>
+                  <span>Newly added & unlearned words</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar bank-bar" id="box-bar-0" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-0">0</b> words</div>
+            </div>
+
+            <div class="box-row" data-box="1">
+              <div class="box-meta">
+                <span class="box-number">1</span>
+                <div class="box-title">
+                  <strong>Box 1</strong>
+                  <span>Every day (New & Mistakes)</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar" id="box-bar-1" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-1">0</b> words</div>
+            </div>
+
+            <div class="box-row" data-box="2">
+              <div class="box-meta">
+                <span class="box-number">2</span>
+                <div class="box-title">
+                  <strong>Box 2</strong>
+                  <span>Every 3 days</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar" id="box-bar-2" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-2">0</b> words</div>
+            </div>
+
+            <div class="box-row" data-box="3">
+              <div class="box-meta">
+                <span class="box-number">3</span>
+                <div class="box-title">
+                  <strong>Box 3</strong>
+                  <span>Every 7 days</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar" id="box-bar-3" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-3">0</b> words</div>
+            </div>
+
+            <div class="box-row" data-box="4">
+              <div class="box-meta">
+                <span class="box-number">4</span>
+                <div class="box-title">
+                  <strong>Box 4</strong>
+                  <span>Every 14 days</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar" id="box-bar-4" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-4">0</b> words</div>
+            </div>
+
+            <div class="box-row" data-box="5">
+              <div class="box-meta">
+                <span class="box-number">5</span>
+                <div class="box-title">
+                  <strong>Box 5</strong>
+                  <span>Every 30 days (Mastered)</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar" id="box-bar-5" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-5">0</b> words</div>
+            </div>
+
+            <!-- Archive box -->
+            <div class="box-row archive-row" data-box="archive">
+              <div class="box-meta">
+                <span class="box-number archive">✓</span>
+                <div class="box-title">
+                  <strong>Archived</strong>
+                  <span>Fully learned</span>
+                </div>
+              </div>
+              <div class="box-bar-wrapper">
+                <div class="box-bar archive-bar" id="box-bar-archive" style="width: 0%;"></div>
+              </div>
+              <div class="box-count"><b id="box-count-archive">0</b> words</div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: MINIMALIST BIG CARD TRAINING -->
+      <section id="screen-training" class="screen">
+        <header class="training-header">
+          <div style="display: flex; gap: 14px; align-items: center;">
+            <button class="btn btn-back-dash-lg btn-back-dash" title="Return to Main Menu">
+              ← Back to Main Dashboard
+            </button>
+            <button class="btn btn-secondary" id="btn-undo-card" title="Undo / Return to previous word (Down Arrow / ↓)">
+              ↩ Previous (↓)
+            </button>
+            <button class="btn btn-secondary" id="btn-skip-card" title="Skip to end of queue (Up Arrow / ↑)">
+              ⏭️ Skip to End (↑)
+            </button>
+          </div>
+          <div class="training-progress-info">
+            <span id="train-mode-title">System Mode</span>
+            <span class="badge" id="train-counter">0 / 0</span>
+          </div>
+        </header>
+
+        <div class="training-wrapper">
+          
+          <!-- Minimalist Big Flashcard Stage -->
+          <div class="swipe-card-stage">
+            <div class="flashcard-container" id="flashcard-container">
+              <div class="flashcard" id="flashcard">
+                
+                <!-- Front Side: Clean Word & Transcription -->
+                <div class="card-face card-front">
+                  <div class="card-box-indicator" id="card-box-indicator-front">0</div>
+                  <div class="card-center-content">
+                    <h1 class="card-word-large" id="card-word-text">Reluctant</h1>
+                    <span class="card-phonetic-sub hidden" id="card-phonetic-text">[rɪˈlʌktənt]</span>
+                    <button class="btn-speak hidden" id="btn-speak-word" title="Listen to pronunciation">🔊</button>
+                    <button class="btn btn-hint-minimal" id="btn-hint">
+                      💡 Hint
+                    </button>
+                    <div class="hint-text hidden" id="hint-display"></div>
+                    <button class="btn-speak hidden" id="btn-speak-hint" title="Listen to example">🔊 example</button>
+                  </div>
+                </div>
+
+                <!-- Back Side: Translation, English Example & Russian Example Translation -->
+                <div class="card-face card-back">
+                  <div class="card-box-indicator" id="card-box-indicator-back">0</div>
+                  <div class="card-center-content">
+                    <span class="back-original-sub" id="card-back-original">Reluctant</span>
+                    <h1 class="card-translation-large" id="card-translation-text">Неохотный / Вынужденный</h1>
+                    
+                    <div class="example-box-dual" id="example-box-dual">
+                      <p class="example-eng" id="card-example-text">He was reluctant to admit his mistake.</p>
+                      <p class="example-rus" id="card-example-trans-text">Он неохотно признал свою ошибку.</p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- Bottom Small Controls & Box Keys Tip -->
+            <div class="tinder-controls">
+              <button class="btn btn-tinder btn-nope" id="btn-swipe-left" title="Forgot / Wrong [A / ←]">
+                🔴 Forgot
+                <kbd>A / ←</kbd>
+              </button>
+              <div class="shortcut-tip-box">
+                <span>Space/S: Flip | ↑: Skip | ↓: Undo | 0-5: Move to Box N</span>
+              </div>
+              <button class="btn btn-tinder btn-like" id="btn-swipe-right" title="Remembered! [D / →]">
+                🟢 Remembered
+                <kbd>D / →</kbd>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: ADD / IMPORT WORDS -->
+      <section id="screen-add-words" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>Add Words</h1>
+            <p class="subtitle">Text & JSON import (Gemini / AI), manual entry, or load from files</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
+        </header>
+
+        <div class="import-tabs">
+          <button class="tab-btn active" data-tab="tab-antigravity">⚡ Text & JSON Import (Gemini / AI)</button>
+          <button class="tab-btn" data-tab="tab-manual">✍️ Manual Entry</button>
+          <button class="tab-btn" data-tab="tab-file">📁 File Upload (.txt/.csv)</button>
+        </div>
+
+        <div class="tab-content-container">
+          
+          <!-- Tab 1 (Default): Text & JSON Import -->
+          <div id="tab-antigravity" class="tab-content active">
+            <div class="glass-card">
+              <div class="ai-guide-box">
+                <h4>💡 Prompt for Gemini Bot (to generate JSON):</h4>
+                <p>Copy and send this prompt to your Gemini bot, then paste the resulting JSON below:</p>
+                <div class="code-block">
+                  <code>Я буду отправлять тебе английские слова. Составляй для каждого JSON-объект со свойствами: word, transcription, translation (с уточнением сущ./гл.), part_of_speech, example, example_translation. Возвращай ТОЛЬКО чистый массив JSON [ { ... } ].</code>
+                  <button class="btn btn-sm btn-secondary" id="btn-copy-prompt">📋 Copy Prompt for Gemini</button>
+                </div>
+              </div>
+
+              <div class="form-group margin-top">
+                <label for="textarea-antigravity">Paste JSON or Text from Gemini here:</label>
+                <textarea id="textarea-antigravity" rows="9" placeholder='[
+  {
+    "word": "accessible",
+    "transcription": "[əkˈsesəbl]",
+    "translation": "доступный, понятный (прил.)",
+    "example": "The building has accessible entrances for everyone.",
+    "example_translation": "В здании есть доступные входы для всех."
+  }
+]'></textarea>
+              </div>
+
+              <button class="btn btn-primary btn-lg" id="btn-parse-antigravity">
+                🚀 Import Cards Now
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab 2: Manual Entry -->
+          <div id="tab-manual" class="tab-content">
+            <form id="form-manual-add" class="glass-form">
+              <div class="form-group">
+                <label for="input-word">English Word / Phrase *</label>
+                <input type="text" id="input-word" placeholder="e.g. Reluctant" required>
+              </div>
+
+              <div class="form-group">
+                <label for="input-phonetic">Phonetic Transcription (Optional)</label>
+                <input type="text" id="input-phonetic" placeholder="e.g. [rɪˈlʌktənt]">
+              </div>
+
+              <div class="form-group">
+                <label for="input-translation">Translation (Russian) *</label>
+                <input type="text" id="input-translation" placeholder="e.g. Неохотный, сомневающийся" required>
+              </div>
+
+              <div class="form-group">
+                <label for="input-example">Example Sentence (English)</label>
+                <textarea id="input-example" rows="2" placeholder="e.g. He was reluctant to admit his mistake."></textarea>
+              </div>
+
+              <div class="form-group">
+                <label for="input-example-trans">Example Sentence Translation (Russian)</label>
+                <textarea id="input-example-trans" rows="2" placeholder="e.g. Он неохотно признал свою ошибку."></textarea>
+              </div>
+
+              <button type="submit" class="btn btn-primary btn-lg">
+                ➕ Add Flashcard
+              </button>
+            </form>
+          </div>
+
+          <!-- Tab 3: File Import -->
+          <div id="tab-file" class="tab-content">
+            <div class="glass-card">
+              <h3>Bulk Import from .txt / .csv</h3>
+              <p class="subtitle">Supported delimiters: comma, semicolon, or vertical bar (<code>|</code>).</p>
+
+              <div class="file-dropzone" id="file-dropzone">
+                <span class="dropzone-icon">📄</span>
+                <p>Drag & drop file here or click to browse</p>
+                <input type="file" id="input-file-select" accept=".txt,.csv" hidden>
+                <button class="btn btn-secondary" id="btn-trigger-file">Select File</button>
+              </div>
+
+              <div id="file-preview-area" class="margin-top hidden">
+                <h4>Preview of found words (<span id="preview-count">0</span>):</h4>
+                <div class="table-scroll-container">
+                  <table class="preview-table">
+                    <thead>
+                      <tr>
+                        <th>Word</th>
+                        <th>Transcription</th>
+                        <th>Translation</th>
+                        <th>Example</th>
+                      </tr>
+                    </thead>
+                    <tbody id="preview-tbody"></tbody>
+                  </table>
+                </div>
+                <button class="btn btn-primary margin-top" id="btn-confirm-file-import">
+                  ✅ Confirm Import
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- SCREEN 4: DICTIONARY TABLE & BOX MANAGEMENT -->
+      <section id="screen-dictionary" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>My Dictionary</h1>
+            <p class="subtitle" id="dict-subtitle">Manage flashcards, search, edit, and export</p>
+          </div>
+          <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-primary hidden" id="btn-practice-box">
+              🚀 Practice Words in This Box
+            </button>
+            <button class="btn btn-secondary" id="btn-export-csv">
+              📥 Export CSV
+            </button>
+            <button class="btn btn-secondary btn-back-dash">
+              ← Back to Dashboard
+            </button>
+          </div>
+        </header>
+
+        <div class="dictionary-controls">
+          <div class="search-box">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="dict-search-input" placeholder="Search by word or translation...">
+          </div>
+          <select id="dict-filter-box" class="filter-select">
+            <option value="all">All Boxes</option>
+            <option value="0">Box 0 (Word Bank)</option>
+            <option value="1">Box 1</option>
+            <option value="2">Box 2</option>
+            <option value="3">Box 3</option>
+            <option value="4">Box 4</option>
+            <option value="5">Box 5</option>
+            <option value="archive">🏆 Archive (Learned)</option>
+          </select>
+        </div>
+
+        <div class="dictionary-grid-wrapper" id="dict-cards-grid">
+          <!-- Dynamically rendered cards -->
+        </div>
+      </section>
+
+      <!-- SCREEN 5: STATISTICS -->
+      <section id="screen-statistics" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>Analytics & Statistics</h1>
+            <p class="subtitle">Detailed report on learning efficiency</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
+        </header>
+
+        <div class="stats-overview-grid">
+          <div class="stat-summary-card">
+            <h4>Total Added</h4>
+            <span class="stat-big-num" id="stat-total-added">0</span>
+            <span class="stat-sub">All time</span>
+          </div>
+          <div class="stat-summary-card">
+            <h4>Added in 7 Days</h4>
+            <span class="stat-big-num" id="stat-added-week">0</span>
+            <span class="stat-sub">Fresh cards</span>
+          </div>
+          <div class="stat-summary-card">
+            <h4>Accuracy Rate</h4>
+            <span class="stat-big-num green-text" id="stat-accuracy">0%</span>
+            <span class="stat-sub" id="stat-answers-ratio">0 out of 0 answers</span>
+          </div>
+          <div class="stat-summary-card">
+            <h4>Learned (Archived)</h4>
+            <span class="stat-big-num gold-text" id="stat-archived-count">0</span>
+            <span class="stat-sub">Completed 5 boxes</span>
+          </div>
+        </div>
+
+        <!-- Activity Heatmap -->
+        <div class="section-card margin-top">
+          <h3>📅 Activity Heatmap (GitHub-style)</h3>
+          <p class="subtitle">Your review sessions over recent months</p>
+          <div class="heatmap-wrapper">
+            <div class="heatmap-grid" id="heatmap-grid"></div>
+          </div>
+          <div class="heatmap-legend">
+            <span>Less</span>
+            <div class="legend-scale">
+              <span class="h-cell level-0"></span>
+              <span class="h-cell level-1"></span>
+              <span class="h-cell level-2"></span>
+              <span class="h-cell level-3"></span>
+              <span class="h-cell level-4"></span>
+            </div>
+            <span>More</span>
+          </div>
+        </div>
+
+        <!-- Top Mistakes / Difficult Words -->
+        <div class="section-card margin-top">
+          <div class="section-header">
+            <h3>⚠️ Difficult Words (Top Mistakes)</h3>
+            <span class="info-tag alert">Cards most frequently reset back to Box 1</span>
+          </div>
+          <p class="subtitle">Review these words separately to strengthen weak spots</p>
+          
+          <table class="data-table margin-top">
+            <thead>
+              <tr>
+                <th>Word</th>
+                <th>Translation</th>
+                <th>Reset Count (Errors)</th>
+                <th>Current Box</th>
+              </tr>
+            </thead>
+            <tbody id="stat-mistakes-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- SCREEN 5: WORD GROUPS & PACKS -->
+      <section id="screen-groups" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>📁 Word Groups & Collections</h1>
+            <p class="subtitle">Organized automatically by import batches and parts of speech</p>
+          </div>
+        </header>
+
+        <!-- Sub-tabs for Groups Screen -->
+        <div class="groups-filter-header margin-top">
+          <div class="tab-controls">
+            <button class="groups-tab-btn active" data-groups-tab="batches">
+              📦 Import Sessions (Партии)
+            </button>
+            <button class="groups-tab-btn" data-groups-tab="pos">
+              🏷️ Parts of Speech (Части речи)
+            </button>
+            <button class="groups-tab-btn" data-groups-tab="custom">
+              🖐️ Manual Groups (Ручные группы)
+            </button>
+          </div>
+        </div>
+
+        <!-- Groups Tab Content 1: Import Sessions -->
+        <div id="groups-tab-batches" class="groups-tab-content active margin-top">
+          <div class="groups-grid" id="groups-batches-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Groups Tab Content 2: Parts of Speech -->
+        <div id="groups-tab-pos" class="groups-tab-content margin-top">
+          <div class="groups-grid" id="groups-pos-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Groups Tab Content 3: Manual Custom Groups -->
+        <div id="groups-tab-custom" class="groups-tab-content margin-top">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <p class="subtitle" style="margin:0;">Create custom sets of words manually for targeted learning</p>
+            <button class="btn btn-primary" id="btn-create-custom-group">
+              ➕ Create New Group
+            </button>
+          </div>
+          <div class="groups-grid" id="groups-custom-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- EDIT CARD MODAL -->
+  <div id="modal-edit-card" class="modal-overlay hidden">
+    <div class="modal-content glass-card">
+      <div class="modal-header">
+        <h3>✏️ Edit Flashcard</h3>
+        <button class="btn-close-modal" id="btn-close-edit-modal">✖</button>
+      </div>
+      <form id="form-edit-card" class="glass-form margin-top">
+        <input type="hidden" id="edit-card-id">
+        <div class="form-group">
+          <label for="edit-word">English Word *</label>
+          <input type="text" id="edit-word" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-phonetic">Phonetic Transcription</label>
+          <input type="text" id="edit-phonetic">
+        </div>
+        <div class="form-group">
+          <label for="edit-translation">Translation (Russian) *</label>
+          <input type="text" id="edit-translation" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-part-of-speech">Part of Speech (e.g. noun, verb, adjective, phrase)</label>
+          <input type="text" id="edit-part-of-speech" placeholder="e.g. noun, verb, adjective, phrase">
+        </div>
+        <div class="form-group">
+          <label for="edit-example">Example Sentence (ENG)</label>
+          <textarea id="edit-example" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="edit-example-trans">Example Sentence Translation (RUS)</label>
+          <textarea id="edit-example-trans" rows="2"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="edit-box">Box Number</label>
+          <select id="edit-box">
+            <option value="0">Box 0 (Word Bank)</option>
+            <option value="1">Box 1</option>
+            <option value="2">Box 2</option>
+            <option value="3">Box 3</option>
+            <option value="4">Box 4</option>
+            <option value="5">Box 5</option>
+            <option value="archive">🏆 Archive</option>
+          </select>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-edit">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- UNIFIED GROUP DETAIL MODAL -->
+  <div id="modal-group-detail" class="modal-overlay hidden">
+    <div class="modal-content glass-card" style="max-width: 860px; width: 95%;">
+
+      <!-- Header: title + close -->
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+          <h3 id="gd-title" style="margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Group</h3>
+          <button class="btn btn-secondary hidden" id="gd-btn-rename" style="padding:4px 12px; font-size:13px; white-space:nowrap;">✏️ Rename</button>
+        </div>
+        <button class="btn-close-modal" id="gd-btn-close">✖</button>
+      </div>
+
+      <!-- Practice button -->
+      <div style="margin-top:16px;">
+        <button class="btn btn-hero btn-hero-practice" id="gd-btn-practice" style="width:100%; padding:14px 20px;">
+          <span class="hero-icon">🚀</span>
+          <div class="hero-text">
+            <span class="hero-title" id="gd-practice-label">Practice this group</span>
+            <span class="hero-sub" id="gd-practice-sub">0 cards</span>
+          </div>
+        </button>
+      </div>
+
+      <!-- Inline word search panel (batch & custom only) -->
+      <div id="gd-add-panel" class="hidden" style="margin-top:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:14px;">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+          <span style="font-weight:600; font-size:14px;">➕ Add word from dictionary</span>
+          <button class="btn btn-secondary" id="gd-btn-toggle-search" style="padding:4px 12px; font-size:13px;">Search…</button>
+        </div>
+        <div id="gd-search-area" class="hidden">
+          <div class="search-box" style="margin-bottom:10px;">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="gd-search-input" placeholder="Type a word or translation…" autocomplete="off">
+          </div>
+          <div id="gd-search-results" style="display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- Word list -->
+      <div class="modal-body" style="margin-top:14px; max-height:50vh; overflow-y:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Word (ENG)</th>
+              <th>Translation (RUS)</th>
+              <th>Part of Speech</th>
+              <th>Box</th>
+              <th id="gd-actions-th">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="gd-words-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div style="display:flex; justify-content:flex-end; margin-top:18px;">
+        <button class="btn btn-secondary" id="gd-btn-close-footer">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- keep old manage modal for legacy; now unused but avoid JS errors -->
+  <div id="modal-group-words" class="modal-overlay hidden"><div></div></div>
+  <div id="modal-manage-group-words" class="modal-overlay hidden"><div></div></div>
+
+  <!-- CONFETTI CANVAS OVERLAY -->
+  <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="data/leitner_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
