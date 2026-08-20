@@ -669,7 +669,65 @@ body {
   font-size: 13px;
 }
 
+/* Direction Switcher Bar (inside training screen) */
+.direction-switcher-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 8px 24px 0;
+  opacity: 0.85;
+}
+
+.direction-switcher-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.direction-switcher-btns {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.dir-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+
+.dir-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.dir-btn.dir-btn-active {
+  background: rgba(99, 102, 241, 0.25);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+}
+
+/* Hide direction switcher in Learn New Words mode */
+.direction-switcher-bar.hidden {
+  display: none;
+}
+
 .training-wrapper {
+
   position: relative;
   display: flex;
   justify-content: center;
@@ -701,8 +759,9 @@ body {
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
-  transition: transform 0.18s ease-out;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: grab;
+  transform: rotateY(0deg);
 }
 
 .flashcard:active {
@@ -710,7 +769,7 @@ body {
 }
 
 .flashcard.flipped {
-  transform: rotateY(180deg);
+  transform: rotateY(180deg) !important;
 }
 
 .card-face {
@@ -745,13 +804,24 @@ body {
   width: 100%;
 }
 
+.card-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
 .card-word-large {
-  font-size: 52px;
+  font-size: 50px;
   font-weight: 800;
   font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--text-main);
-  margin-bottom: 12px;
+  margin-bottom: 0;
   letter-spacing: -0.5px;
+  line-height: 1.15;
 }
 
 .card-phonetic-sub {
@@ -759,61 +829,95 @@ body {
   font-weight: 500;
   color: #a5b4fc;
   font-family: 'Inter', sans-serif;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .btn-hint-minimal {
   background: rgba(245, 158, 11, 0.12);
   color: var(--accent-amber);
   border: 1px solid rgba(245, 158, 11, 0.3);
-  padding: 8px 18px;
-  border-radius: 20px;
-  font-size: 13px;
+  padding: 12px 26px;
+  border-radius: 26px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.15s;
 }
 .btn-hint-minimal:hover {
   background: rgba(245, 158, 11, 0.22);
+  transform: translateY(-1px);
+}
+
+.hint-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 520px;
+  margin-top: 14px;
+}
+
+.back-word-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
 .back-original-sub {
   font-size: 18px;
   color: var(--text-muted);
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .card-translation-large {
-  font-size: 42px;
+  font-size: 40px;
   font-weight: 800;
   color: var(--accent-green);
   font-family: 'Plus Jakarta Sans', sans-serif;
   margin-bottom: 20px;
   letter-spacing: -0.5px;
+  line-height: 1.2;
 }
 
 /* Dual Example Box: English + Russian Translation */
 .example-box-dual {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.25);
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.28);
   border-left: 3px solid var(--accent-primary);
   padding: 14px 20px;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 14px 14px 0;
   text-align: left;
   width: 100%;
   max-width: 520px;
+  backdrop-filter: blur(8px);
+}
+
+.example-eng-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .example-eng {
   font-size: 15px;
   color: #f1f5f9;
   font-style: italic;
-  line-height: 1.4;
+  line-height: 1.45;
+  margin: 0;
+  flex: 1;
 }
 
 .example-rus {
   font-size: 13px;
   color: var(--text-muted);
   line-height: 1.4;
+  margin: 0;
 }
 
 .hint-text {
@@ -824,9 +928,9 @@ body {
   font-size: 14px;
   color: #fef08a;
   text-align: center;
-  max-width: 500px;
-  margin-top: 14px;
+  width: 100%;
   font-style: italic;
+  line-height: 1.4;
 }
 
 /* Bottom Small Navigation Control Bar */
@@ -1478,6 +1582,10 @@ input[type="text"]:focus, textarea:focus, select:focus {
   font-weight: 700;
   color: var(--text-main);
   word-break: break-word;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .dict-card-pos {
@@ -1555,38 +1663,102 @@ input[type="text"]:focus, textarea:focus, select:focus {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
-  opacity: 0.22;
-  user-select: none;
-  pointer-events: none;
-}/* Tiny card box indicator */
-.card-box-indicator {
-  position: absolute;
-  top: 18px;
-  right: 22px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  opacity: 0.22;
+  opacity: 0.25;
   user-select: none;
   pointer-events: none;
 }
 
-/* Small speak / audio button on flashcard */
+/* Pronunciation & Audio Speak Buttons */
 .btn-speak {
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  font-size: 15px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e2e8f0;
+  font-size: 26px;
   cursor: pointer;
-  padding: 4px 8px;
-  opacity: 0.45;
-  border-radius: 8px;
-  transition: opacity 0.18s, background 0.18s;
-  margin-top: 6px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  outline: none;
+  flex-shrink: 0;
+  vertical-align: middle;
+  opacity: 0.85;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
 }
+
 .btn-speak:hover {
   opacity: 1;
-  background: rgba(255,255,255,0.07);
+  background: rgba(99, 102, 241, 0.3);
+  border-color: rgba(129, 140, 248, 0.6);
+  color: #ffffff;
+  transform: scale(1.1);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45);
 }
+
+.btn-speak:active {
+  transform: scale(0.93);
+  background: rgba(99, 102, 241, 0.5);
+}
+
+.btn-speak-sentence,
+.btn-speak-hint {
+  font-size: 15px;
+  padding: 8px 18px;
+  border-radius: 12px;
+  gap: 7px;
+  font-weight: 600;
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fef08a;
+}
+
+.btn-speak-sentence:hover,
+.btn-speak-hint:hover {
+  background: rgba(245, 158, 11, 0.28);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35);
+}
+
+.btn-speak-example {
+  font-size: 16px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.btn-speak-dict {
+  font-size: 14px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  vertical-align: middle;
+  opacity: 0.75;
+}
+
+.btn-speak-dict:hover {
+  opacity: 1;
+}
+
+.btn-speak-table {
+  font-size: 13px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  vertical-align: middle;
+  opacity: 0.75;
+}
+
+.btn-speak-table:hover {
+  opacity: 1;
+}
+
 

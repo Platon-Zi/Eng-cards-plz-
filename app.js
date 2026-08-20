@@ -27,6 +27,9 @@ let hintUsedForCurrentCard = false;
 let sessionUndoStack = [];
 let activeBoxFilterForPractice = null;
 let trainingSourceScreen = null;
+// Direction override for current session: null = auto/default, 'eng-rus', 'rus-eng'
+let sessionDirectionOverride = null;
+
 
 // Box intervals in days
 const BOX_INTERVALS = { 0: 0, 1: 1, 2: 3, 3: 7, 4: 14, 5: 30 };
@@ -362,6 +365,9 @@ function setupNavigation() {
 }
 
 function switchScreen(screenId) {
+  if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
   document.querySelectorAll('.nav-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.screen === screenId);
   });
@@ -453,6 +459,29 @@ function openBoxInDictionary(boxVal) {
 // ==========================================
 // SMART SYSTEM SCHEDULER (BOX 0 -> BOX 5, SEAMLESSLY SKIPS EMPTY BOXES)
 // ==========================================
+
+// Helper: Pick direction for a card given override and smart logic
+function pickDirection(card, todayDate) {
+  // If there's an override, always use it (unless learn mode forces eng-rus)
+  if (sessionDirectionOverride === 'eng-rus') return 'eng-rus';
+  if (sessionDirectionOverride === 'rus-eng') return 'rus-eng';
+
+  // Smart auto logic: prioritize untested direction
+  const testedEngToday = card.last_tested_eng === todayDate;
+  const testedRusToday = card.last_tested_rus === todayDate;
+
+  if (!card.eng_to_rus && !testedEngToday) return 'eng-rus';
+  if (!card.rus_to_eng && !testedRusToday) return 'rus-eng';
+  return Math.random() > 0.5 ? 'eng-rus' : 'rus-eng';
+}
+
+// Helper: Pick direction for non-system modes (batch, box, groups etc.)
+function pickDirectionSimple() {
+  if (sessionDirectionOverride === 'eng-rus') return 'eng-rus';
+  if (sessionDirectionOverride === 'rus-eng') return 'rus-eng';
+  return Math.random() > 0.5 ? 'eng-rus' : 'rus-eng';
+}
+
 function getDueCardsForSystem(todayDate) {
   const finalQueue = [];
 
@@ -465,19 +494,7 @@ function getDueCardsForSystem(todayDate) {
     if (dueInBox.length > 0) {
       const shuffled = shuffleArray(dueInBox);
       shuffled.forEach(card => {
-        const testedEngToday = card.last_tested_eng === todayDate;
-        const testedRusToday = card.last_tested_rus === todayDate;
-
-        let direction = 'eng-rus';
-        if (!card.eng_to_rus && !testedEngToday) {
-          direction = 'eng-rus';
-        } else if (!card.rus_to_eng && !testedRusToday) {
-          direction = 'rus-eng';
-        } else {
-          direction = Math.random() > 0.5 ? 'eng-rus' : 'rus-eng';
-        }
-
-        finalQueue.push({ card, direction });
+        finalQueue.push({ card, direction: pickDirection(card, todayDate) });
       });
     }
   }
@@ -490,21 +507,47 @@ function getLearnCardsForSystem(todayDate) {
   const b = 0;
 
   const dueInBox = appState.cards.filter(card => {
-    if (card.box !== b) return false;
+    if (card.box !== b && card.box !== '0') return false;
     return true; // All cards in Box 0 (Bank) are ready to learn
   });
 
   if (dueInBox.length > 0) {
     const shuffled = shuffleArray(dueInBox);
     shuffled.forEach(card => {
-      finalQueue.push({ card, direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng' });
+      // In "Learn new words" (Box 0): always ENG→RUS regardless of override
+      finalQueue.push({ card, direction: 'eng-rus' });
     });
   }
 
   return finalQueue;
 }
 
+// Update direction switcher UI to show active button
+function updateDirectionSwitcherUI(isLearnMode = false) {
+  const bar = document.getElementById('direction-switcher-bar');
+  if (!bar) return;
+
+  // Hide switcher entirely in learn mode (always eng-rus, not user-controlled)
+  if (isLearnMode) {
+    bar.classList.add('hidden');
+    return;
+  }
+  bar.classList.remove('hidden');
+
+  // Update active state on buttons
+  document.querySelectorAll('.dir-btn').forEach(btn => {
+    btn.classList.remove('dir-btn-active');
+  });
+
+  const activeDir = sessionDirectionOverride || 'auto';
+  const activeBtn = document.querySelector(`.dir-btn[data-dir="${activeDir}"]`);
+  if (activeBtn) activeBtn.classList.add('dir-btn-active');
+}
+
 function startTrainingSession(mode, specificBox = null, specificFilter = null) {
+  if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) {
+    document.activeElement.blur();
+  }
   const today = getTodayString();
 
   if (appState.cards.length === 0) {
@@ -513,13 +556,18 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
     return;
   }
 
+  // Reset direction override to default at the start of every new session
+  sessionDirectionOverride = null;
+
+  const isLearnMode = mode === 'learn';
+
   if (specificFilter) {
     if (mode === 'single_word') {
       const card = appState.cards.find(c => c.id === specificFilter);
       if (!card) return;
       currentTrainingQueue = [{
         card,
-        direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+        direction: pickDirectionSimple()
       }];
     } else if (mode === 'batch') {
       const batchCards = appState.cards.filter(c => (c.batch_id || 'unbatched') === specificFilter);
@@ -529,7 +577,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
       }
       currentTrainingQueue = shuffleArray(batchCards).map(card => ({
         card,
-        direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+        direction: pickDirectionSimple()
       }));
     } else if (mode === 'pos') {
       const posCategories = {
@@ -562,7 +610,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
 
       currentTrainingQueue = shuffleArray(posCards).map(card => ({
         card,
-        direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+        direction: pickDirectionSimple()
       }));
     } else if (mode === 'custom_group') {
       const grp = (appState.custom_groups || []).find(g => g.id === specificFilter);
@@ -574,7 +622,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
       }
       currentTrainingQueue = shuffleArray(customCards).map(card => ({
         card,
-        direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+        direction: pickDirectionSimple()
       }));
     }
   } else if (specificBox !== null) {
@@ -586,7 +634,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
     const shuffled = shuffleArray(boxCards);
     currentTrainingQueue = shuffled.map(card => ({
       card,
-      direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+      direction: pickDirectionSimple()
     }));
   } else if (mode === 'system') {
     currentTrainingQueue = getDueCardsForSystem(today);
@@ -602,7 +650,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
     const activeCards = appState.cards.filter(c => c.box !== 'archive' && c.box !== 0);
     currentTrainingQueue = shuffleArray(activeCards).map(card => ({
       card,
-      direction: Math.random() > 0.5 ? 'eng-rus' : 'rus-eng'
+      direction: pickDirectionSimple()
     }));
   }
 
@@ -629,6 +677,7 @@ function startTrainingSession(mode, specificBox = null, specificFilter = null) {
   }
 
   switchScreen('training');
+  updateDirectionSwitcherUI(isLearnMode);
   renderCurrentCard();
 }
 
@@ -640,9 +689,13 @@ function renderCurrentCard() {
     launchConfetti();
     showToast('🎉 Practice finished! All words reviewed!', 'success');
     recordActivity();
+    // Reset direction override after session ends so next session starts with default
+    sessionDirectionOverride = null;
+    updateDirectionSwitcherUI(false);
     switchScreen(trainingSourceScreen || 'dashboard');
     return;
   }
+
 
   if (currentCardIndex < 0) currentCardIndex = 0;
 
@@ -653,8 +706,14 @@ function renderCurrentCard() {
   hintUsedForCurrentCard = false;
 
   const flashcard = document.getElementById('flashcard');
-  flashcard.style.transform = '';
-  flashcard.classList.remove('flipped');
+  if (flashcard) {
+    flashcard.style.transition = 'none';
+    flashcard.style.transform = 'rotateY(0deg)';
+    flashcard.classList.remove('flipped');
+    requestAnimationFrame(() => {
+      if (flashcard) flashcard.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    });
+  }
 
   // Reset hint UI
   const hintDisplay = document.getElementById('hint-display');
@@ -711,41 +770,100 @@ function renderCurrentCard() {
   if (frontInd) frontInd.textContent = boxLabel;
   if (backInd)  backInd.textContent  = boxLabel;
 
-  // Speak button: show on English front only (ENG→RUS mode)
+  // Speak buttons setup for both Front and Back sides
   const btnSpeakWord = document.getElementById('btn-speak-word');
   const btnSpeakHint = document.getElementById('btn-speak-hint');
+  const hintContainer = document.getElementById('hint-container');
+  const btnSpeakBackWord = document.getElementById('btn-speak-back-word');
+  const btnSpeakBackExample = document.getElementById('btn-speak-back-example');
+
+  if (hintContainer) hintContainer.classList.add('hidden');
   if (btnSpeakHint) btnSpeakHint.classList.add('hidden');
+
+  // Front Face speak button: English word on ENG->RUS mode only
   if (btnSpeakWord) {
     if (direction === 'eng-rus') {
       btnSpeakWord.classList.remove('hidden');
-      btnSpeakWord.onclick = (e) => { e.stopPropagation(); speakEnglish(card.word); };
+      attachSpeakHandler(btnSpeakWord, card.word);
     } else {
       btnSpeakWord.classList.add('hidden');
+    }
+  }
+
+  // Back Face speak button for English word (available in both ENG->RUS and RUS->ENG modes)
+  if (btnSpeakBackWord) {
+    btnSpeakBackWord.classList.remove('hidden');
+    attachSpeakHandler(btnSpeakBackWord, card.word);
+  }
+
+  // Back Face speak button for English example sentence
+  if (btnSpeakBackExample) {
+    if (card.example && card.example.trim() !== '') {
+      btnSpeakBackExample.classList.remove('hidden');
+      attachSpeakHandler(btnSpeakBackExample, card.example.trim());
+    } else {
+      btnSpeakBackExample.classList.add('hidden');
     }
   }
 }
 
 // ==========================================
-// TEXT-TO-SPEECH UTILITY
+// TEXT-TO-SPEECH UTILITY & SAFE CLICK HANDLER
 // ==========================================
+let englishVoice = null;
+function loadVoices() {
+  if (!window.speechSynthesis) return;
+  const voices = window.speechSynthesis.getVoices();
+  if (voices && voices.length > 0) {
+    englishVoice = voices.find(v => (v.lang === 'en-US' || v.lang === 'en_US') && (v.name.includes('Natural') || v.name.includes('Online') || v.name.includes('Google') || v.name.includes('Jenny') || v.name.includes('Guy')))
+      || voices.find(v => v.lang === 'en-US' || v.lang === 'en_US')
+      || voices.find(v => v.lang.startsWith('en'))
+      || null;
+  }
+}
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  loadVoices();
+  if (speechSynthesis.onvoiceschanged !== undefined) {
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+}
+
 function speakEnglish(text) {
   if (!window.speechSynthesis || !text) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(text);
+  if (!englishVoice) loadVoices();
+  if (englishVoice) utt.voice = englishVoice;
   utt.lang = 'en-US';
-  utt.rate = 0.85;
+  utt.rate = 0.88;
   utt.pitch = 1;
   window.speechSynthesis.speak(utt);
+}
+
+function attachSpeakHandler(btn, textToSpeak) {
+  if (!btn) return;
+  btn.onclick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    speakEnglish(textToSpeak);
+  };
+  btn.onmousedown = (e) => e.stopPropagation();
+  btn.ontouchstart = (e) => e.stopPropagation();
+  btn.onpointerdown = (e) => e.stopPropagation();
 }
 
 // Bidirectional Flip (Front <-> Back)
 function toggleFlipCard() {
   isFlipped = !isFlipped;
   const flashcard = document.getElementById('flashcard');
+  if (!flashcard) return;
+  flashcard.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
   if (isFlipped) {
     flashcard.classList.add('flipped');
+    flashcard.style.transform = 'rotateY(180deg)';
   } else {
     flashcard.classList.remove('flipped');
+    flashcard.style.transform = 'rotateY(0deg)';
   }
 }
 
@@ -755,13 +873,20 @@ function useHint() {
   hintUsedForCurrentCard = true;
 
   const { card, direction } = currentTrainingItem;
+  const hintContainer = document.getElementById('hint-container');
   const hintDisplay = document.getElementById('hint-display');
+  const btnSpeakHint = document.getElementById('btn-speak-hint');
   
   if (direction === 'eng-rus') {
     if (!card.example || card.example.trim() === '') {
       hintDisplay.textContent = 'No example sentence set for this word.';
+      if (btnSpeakHint) btnSpeakHint.classList.add('hidden');
     } else {
       hintDisplay.textContent = `Example: "${card.example.trim()}"`;
+      if (btnSpeakHint) {
+        btnSpeakHint.classList.remove('hidden');
+        attachSpeakHandler(btnSpeakHint, card.example.trim());
+      }
     }
   } else {
     const rusEx = (card.example_translation && card.example_translation.trim() !== '') 
@@ -773,17 +898,12 @@ function useHint() {
     } else {
       hintDisplay.textContent = `Пример: "${rusEx}"`;
     }
+    if (btnSpeakHint) btnSpeakHint.classList.add('hidden');
   }
 
+  if (hintContainer) hintContainer.classList.remove('hidden');
   hintDisplay.classList.remove('hidden');
   document.getElementById('btn-hint').disabled = true;
-
-  // Show speak button for English example sentence
-  const btnSpeakHint = document.getElementById('btn-speak-hint');
-  if (btnSpeakHint && card.example && card.example.trim() !== '') {
-    btnSpeakHint.classList.remove('hidden');
-    btnSpeakHint.onclick = (e) => { e.stopPropagation(); speakEnglish(card.example.trim()); };
-  }
 
   showToast('⚠️ Hint requested! Card marked as unlearned.', 'info');
 }
@@ -815,6 +935,8 @@ async function processAnswer(isCorrect) {
   }
   appState.history[today].total = (appState.history[today].total || 0) + 1;
 
+  const isBoxZero = card.box === 0 || card.box === '0';
+
   if (isCorrect) {
     appState.history[today].correct = (appState.history[today].correct || 0) + 1;
 
@@ -826,27 +948,41 @@ async function processAnswer(isCorrect) {
       card.last_tested_rus = today;
     }
 
-    // Auto-advance: when remembered in both directions → move up one box
-    if (card.eng_to_rus && card.rus_to_eng) {
-      if (card.box < 5) {
-        card.box += 1;
-        card.eng_to_rus = false;
-        card.rus_to_eng = false;
-        card.next_review_date = addDaysToDate(today, BOX_INTERVALS[card.box]);
-      } else {
-        card.box = 'archive';
-        card.next_review_date = null;
+    if (isBoxZero) {
+      // 🌟 In Box 0 (Learn new words): "Remembered" immediately moves the word to Box 1
+      card.box = 1;
+      card.eng_to_rus = false;
+      card.rus_to_eng = false;
+      card.next_review_date = addDaysToDate(today, BOX_INTERVALS[1]);
+      showToast(`📦 Word "${card.word}" moved to Box 1!`, 'success');
+    } else {
+      // Auto-advance for Box 1-5: when remembered in both directions → move up one box
+      if (card.eng_to_rus && card.rus_to_eng) {
+        if (card.box < 5) {
+          card.box += 1;
+          card.eng_to_rus = false;
+          card.rus_to_eng = false;
+          card.next_review_date = addDaysToDate(today, BOX_INTERVALS[card.box]);
+        } else {
+          card.box = 'archive';
+          card.next_review_date = null;
+        }
       }
     }
   } else {
-    // ❌ Forgot — drop to box 1 (stay at 1 if already there)
+    // ❌ Forgot
     card.eng_to_rus = false;
     card.rus_to_eng = false;
-    if (card.box !== 1) {
-      card.box = 1;
-    }
     card.fail_count = (card.fail_count || 0) + 1;
     card.next_review_date = today;
+
+    if (isBoxZero) {
+      // 🏦 In Box 0 (Learn new words): "Forgot" keeps the word in Box 0
+      card.box = 0;
+    } else {
+      // Regular boxes: drop to Box 1 (stay at 1 if already there)
+      card.box = 1;
+    }
   }
 
   await saveData();
@@ -975,57 +1111,66 @@ function setupSwipeGestures() {
   const flashcard = document.getElementById('flashcard');
 
   let isDragging = false;
+  let hasMoved = false;
   let startX = 0;
   let currentX = 0;
 
   function onPointerDown(e) {
     const trainingScreen = document.getElementById('screen-training');
-    if (!trainingScreen.classList.contains('active')) return;
-    if (e.target.closest('#btn-hint')) return;
+    if (!trainingScreen || !trainingScreen.classList.contains('active')) return;
+    if (e.target.closest('button, .btn-speak, #btn-hint, .no-flip, a, input, select, textarea')) return;
 
     isDragging = true;
-    startX = e.clientX || (e.touches && e.touches[0].clientX);
-    flashcard.style.transition = 'none';
+    hasMoved = false;
+    startX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
+    currentX = 0;
   }
 
   function onPointerMove(e) {
     if (!isDragging) return;
-    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX) || 0;
     currentX = clientX - startX;
 
-    const rot = currentX * 0.08;
-    const currentRotY = isFlipped ? 180 : 0;
-
-    flashcard.style.transform = `translateX(${currentX}px) rotate(${rot}deg) rotateY(${currentRotY}deg)`;
+    if (Math.abs(currentX) > 6) {
+      hasMoved = true;
+      flashcard.style.transition = 'none';
+      const rot = currentX * 0.08;
+      const currentRotY = isFlipped ? 180 : 0;
+      flashcard.style.transform = `translateX(${currentX}px) rotate(${rot}deg) rotateY(${currentRotY}deg)`;
+    }
   }
 
   function onPointerUp() {
     if (!isDragging) return;
     isDragging = false;
 
-    flashcard.style.transition = 'transform 0.2s ease-out';
+    if (!hasMoved) {
+      // User just clicked/tapped the card — do not override transform, click listener handles flip smoothly
+      return;
+    }
 
-    const threshold = 70;
+    flashcard.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    const threshold = 75;
 
     if (currentX > threshold) {
       // Swipe Right -> Remembered 🟢
-      flashcard.style.transform = `translateX(600px) rotate(30deg)`;
+      flashcard.style.transform = `translateX(600px) rotate(30deg) rotateY(${isFlipped ? 180 : 0}deg)`;
       setTimeout(() => {
         processAnswer(true);
       }, 150);
     } else if (currentX < -threshold) {
       // Swipe Left -> Forgot 🔴
-      flashcard.style.transform = `translateX(-600px) rotate(-30deg)`;
+      flashcard.style.transform = `translateX(-600px) rotate(-30deg) rotateY(${isFlipped ? 180 : 0}deg)`;
       setTimeout(() => {
         processAnswer(false);
       }, 150);
     } else {
-      // Spring back to center
-      const currentRotY = isFlipped ? 180 : 0;
-      flashcard.style.transform = `rotateY(${currentRotY}deg)`;
+      // Spring back to current face
+      flashcard.style.transform = isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)';
     }
 
     currentX = 0;
+    hasMoved = false;
   }
 
   container.addEventListener('mousedown', onPointerDown);
@@ -1105,9 +1250,40 @@ function setupEventHandlers() {
     btnStartLearn.addEventListener('click', () => startTrainingSession('learn'));
   }
 
-  document.querySelectorAll('.mode-btn').forEach(btn => {
-    btn.addEventListener('click', () => startTrainingSession(btn.dataset.mode));
+  // In-session direction switcher buttons
+  document.querySelectorAll('.dir-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const dir = btn.dataset.dir;
+
+      // Set override: 'auto' means null (back to default)
+      sessionDirectionOverride = (dir === 'auto') ? null : dir;
+
+      // Rebuild the direction of remaining unseen cards in current session
+      const today = getTodayString();
+      for (let i = currentCardIndex; i < currentTrainingQueue.length; i++) {
+        const item = currentTrainingQueue[i];
+        if (sessionDirectionOverride) {
+          item.direction = sessionDirectionOverride;
+        } else {
+          item.direction = pickDirection(item.card, today);
+        }
+      }
+      // Also update the current card's direction (if still on front)
+      if (currentTrainingItem && !isFlipped) {
+        if (sessionDirectionOverride) {
+          currentTrainingItem.direction = sessionDirectionOverride;
+        } else {
+          currentTrainingItem.direction = pickDirection(currentTrainingItem.card, today);
+        }
+        renderCurrentCard();
+      }
+
+      updateDirectionSwitcherUI(false);
+      showToast(`Direction set to: ${btn.textContent.trim()}`, 'info');
+    });
   });
+
+
 
   document.querySelectorAll('.box-row').forEach(row => {
     row.addEventListener('click', () => {
@@ -1132,7 +1308,10 @@ function setupEventHandlers() {
   // Card click toggles flip (front <-> back)
   const flashcardContainer = document.getElementById('flashcard-container');
   flashcardContainer.addEventListener('click', (e) => {
-    if (e.target.closest('#btn-hint')) return;
+    if (e.target.closest('button, .btn-speak, #btn-hint, .no-flip, a, input, select, textarea')) return;
+    if (document.activeElement && document.activeElement.blur && document.activeElement !== document.body) {
+      document.activeElement.blur();
+    }
     toggleFlipCard();
   });
 
@@ -1157,15 +1336,15 @@ function setupEventHandlers() {
     skipCardToEnd();
   });
 
-  // Keyboard Navigation Bindings:
-  // Right Arrow / D = Remembered 🟢
-  // Left Arrow / A = Forgot 🔴
+  // Keyboard Navigation Bindings (Window Capture Phase to guarantee instant response):
+  // Space / S / Ы = Toggle Flip 🔄
+  // Right Arrow / D / В = Remembered 🟢
+  // Left Arrow / A / Ф = Forgot 🔴
   // Down Arrow (↓) = Undo & Return to Previous Card
-  // Up Arrow (↑) / W = Skip Current Card to End of Queue
-  // Space / S = Toggle Flip 🔄
-  // Number keys 1-5 = Manually assign card to Box 1..5
+  // Up Arrow (↑) / W / Ц = Skip Current Card to End of Queue
+  // Number keys 0-5 = Manually assign card to Box 0..5
   // Escape = Close modal or return to Main Menu
-  document.addEventListener('keydown', (e) => {
+  window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       // Priority 1: Close any open modal
       const modals = [
@@ -1195,30 +1374,60 @@ function setupEventHandlers() {
     }
 
     const trainingScreen = document.getElementById('screen-training');
-    if (trainingScreen.classList.contains('active')) {
-      const key = e.key.toLowerCase();
+    if (trainingScreen && trainingScreen.classList.contains('active')) {
+      const activeEl = document.activeElement;
+      
+      // If user is actually typing inside a visible input/textarea/select in an open modal
+      if (activeEl && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) {
+        if (activeEl.offsetParent === null) {
+          activeEl.blur();
+        } else {
+          return;
+        }
+      }
+
+      const key = (e.key || '').toLowerCase();
+      const isSpace = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32 || e.which === 32;
+      const isS = key === 's' || key === 'ы';
+
+      if (isSpace || isS) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) {
+          activeEl.blur();
+        }
+        toggleFlipCard(); // Space / S / Ы = Toggle Flip 🔄
+        return;
+      }
 
       if (['0', '1', '2', '3', '4', '5'].includes(key)) {
         e.preventDefault();
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
         manuallyMoveCardToBox(parseInt(key)); // Move card to Box 0-5
-      } else if (key === 'd' || key === 'arrowright') {
+      } else if (key === 'd' || key === 'в' || key === 'arrowright') {
         e.preventDefault();
-        processAnswer(true); // Right / D = Remembered 🟢
-      } else if (key === 'a' || key === 'arrowleft') {
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
+        processAnswer(true); // Right / D / В = Remembered 🟢
+      } else if (key === 'a' || key === 'ф' || key === 'arrowleft') {
         e.preventDefault();
-        processAnswer(false); // Left / A = Forgot 🔴
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
+        processAnswer(false); // Left / A / Ф = Forgot 🔴
       } else if (key === 'arrowdown') {
         e.preventDefault();
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
         undoPreviousCard(); // Down Arrow (↓) = Undo & Return to previous card
-      } else if (key === 'arrowup' || key === 'w') {
+      } else if (key === 'arrowup' || key === 'w' || key === 'ц') {
         e.preventDefault();
-        skipCardToEnd(); // Up Arrow (↑) / W = Skip card to end of session queue
-      } else if (key === 's' || e.code === 'Space') {
-        e.preventDefault();
-        toggleFlipCard(); // Space / S = Toggle Flip 🔄
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
+        skipCardToEnd(); // Up Arrow (↑) / W / Ц = Skip card to end of session queue
       }
     }
-  });
+  }, { capture: true });
 
   document.getElementById('btn-hint').addEventListener('click', (e) => {
     e.stopPropagation();
@@ -1557,7 +1766,10 @@ function renderDictionary() {
     
     cardEl.innerHTML = `
       <div class="dict-card-header">
-        <div class="dict-card-word">${card.word}</div>
+        <div class="dict-card-word">
+          <span>${card.word}</span>
+          <button class="btn-speak btn-speak-dict" title="Listen to pronunciation" aria-label="Listen to word">🔊</button>
+        </div>
         <span class="badge ${badgeClass} dict-card-pos" style="text-transform: capitalize;">${posVal}</span>
       </div>
       <div class="dict-card-translation">${card.translation}</div>
@@ -1570,14 +1782,19 @@ function renderDictionary() {
       </div>
     `;
 
-    // Click on the card body/area
+    // Click on the card body/area to practice this single word
     cardEl.addEventListener('click', (e) => {
-      // Exclude edit and delete buttons
-      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete')) {
+      // Exclude edit, delete, and speak buttons
+      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete') || e.target.closest('.btn-speak')) {
         return;
       }
       startTrainingSession('single_word', null, card.id);
     });
+
+    const dictSpeakBtn = cardEl.querySelector('.btn-speak-dict');
+    if (dictSpeakBtn) {
+      attachSpeakHandler(dictSpeakBtn, card.word);
+    }
 
     // Edit button click handler
     cardEl.querySelector('.btn-dict-edit').addEventListener('click', (e) => {
@@ -2044,7 +2261,13 @@ function openGroupDetailModal({ type, title, cards, batchId = null, posKey = nul
       const posDisplay = card.partOfSpeech || card.part_of_speech || inferPartOfSpeech(card);
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><b>${card.word}</b> ${card.phonetic ? `<small style="opacity:0.65">${card.phonetic}</small>` : ''}</td>
+        <td>
+          <div style="display:inline-flex;align-items:center;gap:6px;">
+            <b>${card.word}</b>
+            <button class="btn-speak btn-speak-table" data-id="${card.id}" title="Listen to pronunciation" aria-label="Listen to word">🔊</button>
+            ${card.phonetic ? `<small style="opacity:0.65;margin-left:2px;">${card.phonetic}</small>` : ''}
+          </div>
+        </td>
         <td>${card.translation}</td>
         <td><span class="badge pos-noun" style="text-transform:capitalize;">${posDisplay}</span></td>
         <td>📦 Box ${card.box}</td>
@@ -2054,6 +2277,13 @@ function openGroupDetailModal({ type, title, cards, batchId = null, posKey = nul
         </td>
       `;
       tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.btn-speak-table').forEach(btn => {
+      const card = appState.cards.find(c => c.id === btn.dataset.id);
+      if (card) {
+        attachSpeakHandler(btn, card.word);
+      }
     });
 
     tbody.querySelectorAll('.btn-gd-edit').forEach(btn => {

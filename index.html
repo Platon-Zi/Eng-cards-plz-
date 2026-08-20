@@ -91,20 +91,7 @@
           </div>
         </div>
 
-        <div class="secondary-actions-row">
-          <h4>Other Formats:</h4>
-          <div class="mode-buttons">
-            <button class="btn btn-secondary mode-btn" data-mode="eng-rus">
-              🇬🇧 ENG ➔ RUS
-            </button>
-            <button class="btn btn-secondary mode-btn" data-mode="rus-eng">
-              🇷🇺 RUS ➔ ENG
-            </button>
-            <button class="btn btn-secondary mode-btn" data-mode="mixed">
-              🔀 Mixed (Warmup)
-            </button>
-          </div>
-        </div>
+
 
         <!-- Leitner Boxes Visualizer -->
         <div class="section-card boxes-section">
@@ -217,7 +204,6 @@
         </div>
       </section>
 
-      <!-- SCREEN 2: MINIMALIST BIG CARD TRAINING -->
       <section id="screen-training" class="screen">
         <header class="training-header">
           <div style="display: flex; gap: 14px; align-items: center;">
@@ -237,7 +223,18 @@
           </div>
         </header>
 
+        <!-- Direction mode switcher (inside training screen, top-right corner) -->
+        <div class="direction-switcher-bar" id="direction-switcher-bar">
+          <span class="direction-switcher-label">Direction:</span>
+          <div class="direction-switcher-btns">
+            <button class="dir-btn" id="dir-btn-eng" data-dir="eng-rus" title="English → Russian">🇬🇧 ENG→RUS</button>
+            <button class="dir-btn dir-btn-active" id="dir-btn-auto" data-dir="auto" title="Auto (Smart 50/50)">🔀 Auto</button>
+            <button class="dir-btn" id="dir-btn-rus" data-dir="rus-eng" title="Russian → English">🇷🇺 RUS→ENG</button>
+          </div>
+        </div>
+
         <div class="training-wrapper">
+
           
           <!-- Minimalist Big Flashcard Stage -->
           <div class="swipe-card-stage">
@@ -248,14 +245,18 @@
                 <div class="card-face card-front">
                   <div class="card-box-indicator" id="card-box-indicator-front">0</div>
                   <div class="card-center-content">
-                    <h1 class="card-word-large" id="card-word-text">Reluctant</h1>
+                    <div class="card-word-row">
+                      <h1 class="card-word-large" id="card-word-text">Reluctant</h1>
+                      <button class="btn-speak hidden" id="btn-speak-word" title="Listen to word pronunciation" aria-label="Listen to word pronunciation">🔊</button>
+                    </div>
                     <span class="card-phonetic-sub hidden" id="card-phonetic-text">[rɪˈlʌktənt]</span>
-                    <button class="btn-speak hidden" id="btn-speak-word" title="Listen to pronunciation">🔊</button>
                     <button class="btn btn-hint-minimal" id="btn-hint">
                       💡 Hint
                     </button>
-                    <div class="hint-text hidden" id="hint-display"></div>
-                    <button class="btn-speak hidden" id="btn-speak-hint" title="Listen to example">🔊 example</button>
+                    <div class="hint-container hidden" id="hint-container">
+                      <div class="hint-text" id="hint-display"></div>
+                      <button class="btn-speak btn-speak-hint hidden" id="btn-speak-hint" title="Listen to example sentence" aria-label="Listen to example sentence">🔊 Listen example</button>
+                    </div>
                   </div>
                 </div>
 
@@ -263,11 +264,17 @@
                 <div class="card-face card-back">
                   <div class="card-box-indicator" id="card-box-indicator-back">0</div>
                   <div class="card-center-content">
-                    <span class="back-original-sub" id="card-back-original">Reluctant</span>
+                    <div class="back-word-row">
+                      <span class="back-original-sub" id="card-back-original">Reluctant</span>
+                      <button class="btn-speak hidden" id="btn-speak-back-word" title="Listen to English word" aria-label="Listen to English word">🔊</button>
+                    </div>
                     <h1 class="card-translation-large" id="card-translation-text">Неохотный / Вынужденный</h1>
                     
                     <div class="example-box-dual" id="example-box-dual">
-                      <p class="example-eng" id="card-example-text">He was reluctant to admit his mistake.</p>
+                      <div class="example-eng-row">
+                        <p class="example-eng" id="card-example-text">He was reluctant to admit his mistake.</p>
+                        <button class="btn-speak btn-speak-example hidden" id="btn-speak-back-example" title="Listen to example sentence" aria-label="Listen to example sentence">🔊</button>
+                      </div>
                       <p class="example-rus" id="card-example-trans-text">Он неохотно признал свою ошибку.</p>
                     </div>
                   </div>
