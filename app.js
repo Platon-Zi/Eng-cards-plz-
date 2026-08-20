@@ -1389,6 +1389,42 @@ function setupEventHandlers() {
       const key = (e.key || '').toLowerCase();
       const isSpace = e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar' || e.keyCode === 32 || e.which === 32;
       const isS = key === 's' || key === 'ы';
+      const isEnter = e.code === 'Enter' || e.key === 'Enter' || e.keyCode === 13;
+
+      // Enter / Shift + Enter Audio & Hint Handlers
+      if (isEnter) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (activeEl && activeEl.blur && activeEl !== document.body) {
+          activeEl.blur();
+        }
+
+        if (currentTrainingItem && currentTrainingItem.card) {
+          if (e.shiftKey) {
+            // Shift + Enter:
+            if (!hintUsedForCurrentCard) {
+              // 1st press: reveal hint
+              useHint();
+            } else {
+              // 2nd press: speak hint (example sentence)
+              const ex = currentTrainingItem.card.example;
+              if (ex && ex.trim() !== '') {
+                speakEnglish(ex.trim());
+                showToast('🔊 Playing example sentence...', 'info');
+              } else {
+                showToast('No example sentence to play', 'info');
+              }
+            }
+          } else {
+            // Plain Enter: speak English word
+            const w = currentTrainingItem.card.word;
+            if (w && w.trim() !== '') {
+              speakEnglish(w.trim());
+            }
+          }
+        }
+        return;
+      }
 
       if (isSpace || isS) {
         e.preventDefault();
