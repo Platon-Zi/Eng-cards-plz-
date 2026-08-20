@@ -1512,6 +1512,17 @@ function setupEventHandlers() {
     showToast('📋 Upgraded AI Prompt copied to clipboard!', 'success');
   });
 
+  const btnGuideCopy = document.getElementById('btn-guide-copy-prompt');
+  if (btnGuideCopy) {
+    btnGuideCopy.addEventListener('click', () => {
+      const codeEl = document.getElementById('guide-prompt-code');
+      if (codeEl) {
+        navigator.clipboard.writeText(codeEl.textContent.trim());
+        showToast('📋 Промпт для нейросети скопирован в буфер!', 'success');
+      }
+    });
+  }
+
   document.getElementById('btn-parse-antigravity').addEventListener('click', async () => {
     const rawText = document.getElementById('textarea-antigravity').value.trim();
     if (!rawText) {
@@ -1856,19 +1867,26 @@ function renderDictionary() {
 // STATISTICS & HEATMAP RENDERER
 // ==========================================
 function renderStatistics() {
+  const elTotal = document.getElementById('stat-total-added');
+  if (!elTotal) return;
+
   const totalAdded = appState.cards.length;
-  document.getElementById('stat-total-added').textContent = totalAdded;
+  elTotal.textContent = totalAdded;
 
   const sevenDaysAgo = addDaysToDate(getTodayString(), -7);
   const addedWeek = appState.cards.filter(c => c.created_at >= sevenDaysAgo).length;
-  document.getElementById('stat-added-week').textContent = addedWeek;
+  const elWeek = document.getElementById('stat-added-week');
+  if (elWeek) elWeek.textContent = addedWeek;
 
   const archived = appState.cards.filter(c => c.box === 'archive').length;
-  document.getElementById('stat-archived-count').textContent = archived;
+  const elArch = document.getElementById('stat-archived-count');
+  if (elArch) elArch.textContent = archived;
 
   const { accuracy, totalAnswers, correctAnswers } = calculateAccuracy();
-  document.getElementById('stat-accuracy').textContent = `${accuracy}%`;
-  document.getElementById('stat-answers-ratio').textContent = `${correctAnswers} out of ${totalAnswers} answers`;
+  const elAcc = document.getElementById('stat-accuracy');
+  if (elAcc) elAcc.textContent = `${accuracy}%`;
+  const elRatio = document.getElementById('stat-answers-ratio');
+  if (elRatio) elRatio.textContent = `${correctAnswers} out of ${totalAnswers} answers`;
 
   renderHeatmap();
   renderMistakesTable();

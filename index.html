@@ -43,8 +43,8 @@
         <button class="nav-btn" data-screen="groups">
           <span class="icon">📁</span> Groups & Packs
         </button>
-        <button class="nav-btn" data-screen="statistics">
-          <span class="icon">📊</span> Statistics
+        <button class="nav-btn" data-screen="guide">
+          <span class="icon">📖</span> Инструкция
         </button>
       </nav>
 
@@ -467,82 +467,295 @@
         </div>
       </section>
 
-      <!-- SCREEN 5: STATISTICS -->
-      <section id="screen-statistics" class="screen">
+      <!-- SCREEN: GUIDE & INSTRUCTIONS -->
+      <section id="screen-guide" class="screen">
         <header class="page-header">
           <div>
-            <h1>Analytics & Statistics</h1>
-            <p class="subtitle">Detailed report on learning efficiency</p>
+            <h1>📖 Инструкция и Руководство</h1>
+            <p class="subtitle">Идея системы Лейтнера, занесение слов через ИИ, хранение данных и горячие клавиши</p>
           </div>
           <button class="btn btn-secondary btn-back-dash">
             ← Back to Dashboard
           </button>
         </header>
 
-        <div class="stats-overview-grid">
-          <div class="stat-summary-card">
-            <h4>Total Added</h4>
-            <span class="stat-big-num" id="stat-total-added">0</span>
-            <span class="stat-sub">All time</span>
-          </div>
-          <div class="stat-summary-card">
-            <h4>Added in 7 Days</h4>
-            <span class="stat-big-num" id="stat-added-week">0</span>
-            <span class="stat-sub">Fresh cards</span>
-          </div>
-          <div class="stat-summary-card">
-            <h4>Accuracy Rate</h4>
-            <span class="stat-big-num green-text" id="stat-accuracy">0%</span>
-            <span class="stat-sub" id="stat-answers-ratio">0 out of 0 answers</span>
-          </div>
-          <div class="stat-summary-card">
-            <h4>Learned (Archived)</h4>
-            <span class="stat-big-num gold-text" id="stat-archived-count">0</span>
-            <span class="stat-sub">Completed 5 boxes</span>
-          </div>
+        <!-- Quick Jump Navigation Pills -->
+        <div class="guide-quick-nav">
+          <a href="#guide-philosophy" class="guide-pill">🧠 Идея & Лейтнер</a>
+          <a href="#guide-import" class="guide-pill">🤖 Занесение & Промпт</a>
+          <a href="#guide-storage" class="guide-pill">☁️ Хранение & Бэкапы</a>
+          <a href="#guide-modes" class="guide-pill">🎯 Режимы обучения</a>
+          <a href="#guide-hotkeys" class="guide-pill">⌨️ Горячие клавиши</a>
         </div>
 
-        <!-- Activity Heatmap -->
-        <div class="section-card margin-top">
-          <h3>📅 Activity Heatmap (GitHub-style)</h3>
-          <p class="subtitle">Your review sessions over recent months</p>
-          <div class="heatmap-wrapper">
-            <div class="heatmap-grid" id="heatmap-grid"></div>
-          </div>
-          <div class="heatmap-legend">
-            <span>Less</span>
-            <div class="legend-scale">
-              <span class="h-cell level-0"></span>
-              <span class="h-cell level-1"></span>
-              <span class="h-cell level-2"></span>
-              <span class="h-cell level-3"></span>
-              <span class="h-cell level-4"></span>
+        <div class="guide-content-wrapper">
+
+          <!-- SECTION 1: PHILOSOPHY & LEITNER SYSTEM -->
+          <div class="section-card guide-card" id="guide-philosophy">
+            <div class="guide-card-header">
+              <span class="guide-icon-bubble">🧠</span>
+              <div>
+                <h3>1. Идея и смысл приложения (Система Лейтнера)</h3>
+                <p class="subtitle">Интервальное повторение для переноса слов в долговременную память</p>
+              </div>
             </div>
-            <span>More</span>
-          </div>
-        </div>
+            
+            <div class="guide-body-text">
+              <p>
+                Приложение построено на <strong>методе интервальных повторений Себастьяна Лейтнера</strong> с <strong>двухсторонней верификацией</strong> (ENG ➔ RUS и RUS ➔ ENG).
+                Слова не зубрятся вслепую, а повторяются ровно в тот момент, когда мозг начинает их забывать.
+              </p>
 
-        <!-- Top Mistakes / Difficult Words -->
-        <div class="section-card margin-top">
-          <div class="section-header">
-            <h3>⚠️ Difficult Words (Top Mistakes)</h3>
-            <span class="info-tag alert">Cards most frequently reset back to Box 1</span>
+              <div class="leitner-explainer-grid">
+                <div class="leitner-step-card">
+                  <div class="step-badge bank-badge">🏦 Bank (Box 0)</div>
+                  <div class="step-title">Банк новых слов</div>
+                  <div class="step-desc">Сюда попадают все только что добавленные слова. Они ждут первого изучения в режиме <em>Learn New Words</em>.</div>
+                </div>
+                <div class="leitner-step-card">
+                  <div class="step-badge box-1-badge">Box 1 • Каждый день</div>
+                  <div class="step-title">Новые & Ошибки</div>
+                  <div class="step-desc">Слова, которые вы только начали учить или в которых ошиблись. Требуют ежедневного повторения.</div>
+                </div>
+                <div class="leitner-step-card">
+                  <div class="step-badge box-2-badge">Box 2 • Раз в 3 дня</div>
+                  <div class="step-title">Первое закрепление</div>
+                  <div class="step-desc">Слово вспомнилось без ошибок в Box 1 и перешло на следующий интервал.</div>
+                </div>
+                <div class="leitner-step-card">
+                  <div class="step-badge box-3-badge">Box 3 • Раз в 7 дней</div>
+                  <div class="step-title">Уверенное знание</div>
+                  <div class="step-desc">Интервал увеличивается до недели. Мозг формирует прочные нейронные связи.</div>
+                </div>
+                <div class="leitner-step-card">
+                  <div class="step-badge box-4-badge">Box 4 • Раз в 14 дней</div>
+                  <div class="step-title">Долговременная память</div>
+                  <div class="step-desc">Проверка через две недели. Слово почти перешло в активный запас.</div>
+                </div>
+                <div class="leitner-step-card">
+                  <div class="step-badge box-5-badge">Box 5 • Раз в 30 дней</div>
+                  <div class="step-title">Финальная проверка</div>
+                  <div class="step-desc">Контрольный рубеж через месяц. Если слово вспомнилось — оно отправляется в <strong>Архив 🏆</strong>.</div>
+                </div>
+              </div>
+
+              <div class="guide-callout info">
+                <strong>🔄 Двухсторонняя верификация:</strong> Чтобы слово перешло в следующую коробку, вы должны успешно вспомнить его <strong>в обоих направлениях</strong> (с английского на русский и с русского на английский). Любая ошибка сбрасывает слово в <strong>Box 1</strong>.
+              </div>
+            </div>
           </div>
-          <p class="subtitle">Review these words separately to strengthen weak spots</p>
-          
-          <table class="data-table margin-top">
-            <thead>
-              <tr>
-                <th>Word</th>
-                <th>Translation</th>
-                <th>Reset Count (Errors)</th>
-                <th>Current Box</th>
-              </tr>
-            </thead>
-            <tbody id="stat-mistakes-body">
-              <!-- Dynamically populated -->
-            </tbody>
-          </table>
+
+          <!-- SECTION 2: IMPORT & AI PROMPT -->
+          <div class="section-card guide-card" id="guide-import">
+            <div class="guide-card-header">
+              <span class="guide-icon-bubble">🤖</span>
+              <div>
+                <h3>2. Занесение слов и Промпт для нейросетей</h3>
+                <p class="subtitle">Как быстро генерировать и импортировать готовые карточки через Gemini / ChatGPT / Claude</p>
+              </div>
+            </div>
+
+            <div class="guide-body-text">
+              <p>Вам не нужно вручную вбивать транскрипции, переводы и примеры предложений. Отправьте список нужных слов любой нейросети с нашим готовым промптом:</p>
+
+              <div class="guide-prompt-container">
+                <div class="guide-prompt-header">
+                  <span>📋 Готовый системный промпт для нейросети</span>
+                  <button class="btn btn-sm btn-primary" id="btn-guide-copy-prompt">Копировать промпт</button>
+                </div>
+                <pre class="guide-code-box"><code id="guide-prompt-code">Я буду отправлять тебе английские слова или списки слов. 
+Составь для каждого слова JSON-объект со следующими обязательными полями:
+- "word": английское слово
+- "phonetic": транскрипция в квадратных скобках (например, "[ˈɪnfluəns]")
+- "translation": точный русский перевод с уточнением части речи (сущ./гл./прил.)
+- "part_of_speech": часть речи на английском ("noun", "verb", "adjective", "adverb", "phrase")
+- "example": жизненное предложение-пример на английском языке
+- "example_translation": естественный перевод этого примера на русский язык
+
+Возвращай ТОЛЬКО чистый валидный JSON-массив [ { ... } ] без лишнего вступительного текста и markdown-оберток.</code></pre>
+              </div>
+
+              <h4 style="margin-top: 18px; margin-bottom: 8px;">Пошаговый процесс добавления:</h4>
+              <ol class="guide-steps-list">
+                <li>Скопируйте промпт выше и отправьте его боту (например, Gemini или ChatGPT).</li>
+                <li>Отправьте боту список английских слов, которые хотите выучить.</li>
+                <li>Скопируйте полученный от нейросети JSON.</li>
+                <li>В приложении откройте вкладку <strong>➕ Add Words</strong>.</li>
+                <li>Вставьте JSON в поле и нажмите кнопку <strong>«⚡ Parse & Import Words»</strong>.</li>
+                <li>Слова автоматически распределятся по партиям импорта, получат части речи и попадут в <strong>Bank (Box 0)</strong>!</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- SECTION 3: STORAGE, TRANSPORT & BACKUPS -->
+          <div class="section-card guide-card" id="guide-storage">
+            <div class="guide-card-header">
+              <span class="guide-icon-bubble">☁️</span>
+              <div>
+                <h3>3. Хранение данных, перенос и резервные копии</h3>
+                <p class="subtitle">Где лежат данные, как работает синхронизация с облаком и перенос на другой компьютер</p>
+              </div>
+            </div>
+
+            <div class="guide-body-text">
+              <div class="guide-grid-2col">
+                <div class="guide-info-block">
+                  <h4>📁 Где хранятся данные?</h4>
+                  <p>
+                    Все карточки, история, статистика и деление на партии хранятся прямо в файле <code>data/leitner_data.json</code> внутри папки проекта, а также дублируются в быстром локальном хранилище.
+                  </p>
+                </div>
+
+                <div class="guide-info-block">
+                  <h4>☁️ Облако и GitHub</h4>
+                  <p>
+                    Когда вы загружаете проект на <strong>GitHub</strong>, весь ваш прогресс, добавленные слова и группы фиксируются в репозитории. Данные никуда не исчезнут даже при переустановке системы.
+                  </p>
+                </div>
+
+                <div class="guide-info-block">
+                  <h4>💻 Перенос на другой компьютер</h4>
+                  <p>
+                    Если вы перенесёте папку с проектом на другой компьютер или сделаете <code>git clone</code>, <strong>деление на группы и даты добавления не пропадут</strong>! Каждое слово хранит свой уникальный timestamp и дату <code>created_at</code>.
+                  </p>
+                </div>
+
+                <div class="guide-info-block">
+                  <h4>💾 Ручные резервные копии (Safety Backup)</h4>
+                  <p>
+                    В левой панели всегда доступны кнопки <strong>«Save Backup (JSON)»</strong> (скачать файл базы на диск) и <strong>«Restore Backup»</strong> (мгновенно восстановить всю базу из сохранённого JSON-файла).
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 4: TRAINING MODES -->
+          <div class="section-card guide-card" id="guide-modes">
+            <div class="guide-card-header">
+              <span class="guide-icon-bubble">🎯</span>
+              <div>
+                <h3>4. Режимы обучения и их предназначение</h3>
+                <p class="subtitle">Как правильно тренироваться для максимального результата</p>
+              </div>
+            </div>
+
+            <div class="guide-body-text">
+              <div class="modes-guide-list">
+                <div class="mode-guide-item">
+                  <div class="mode-icon-tag hero-practice">🚀 Practice (Review)</div>
+                  <div>
+                    <strong>Основной режим интервального повторения.</strong>
+                    <p>Собирает из Box 1–5 только те карточки, у которых <em>наступил срок ревью на сегодня</em>. Занимайтесь в этом режиме каждый день для идеального запоминания.</p>
+                  </div>
+                </div>
+
+                <div class="mode-guide-item">
+                  <div class="mode-icon-tag hero-learn">🏦 Learn New Words</div>
+                  <div>
+                    <strong>Режим первого знакомства со словами из Банка (Box 0).</strong>
+                    <p>Карточки показываются в направлении ENG ➔ RUS. При нажатии «Помню» слово официально переходит в <strong>Box 1</strong> и включается в интервальное расписание.</p>
+                  </div>
+                </div>
+
+                <div class="mode-guide-item">
+                  <div class="mode-icon-tag">📁 Groups & Packs (Партии и Темы)</div>
+                  <div>
+                    <strong>Целевая тренировка отдельных наборов.</strong>
+                    <p>Позволяет учить слова по партиям импорта (например, слова за конкретный день), по частям речи (только глаголы или существительные) или по кастомным созданным вами группам.</p>
+                  </div>
+                </div>
+
+                <div class="mode-guide-item">
+                  <div class="mode-icon-tag">🔀 Direction Switcher (Направление)</div>
+                  <div>
+                    <strong>Переключатель языка в правом верхнем углу тренировки:</strong>
+                    <ul style="margin-top: 6px; padding-left: 20px; font-size: 13px; color: var(--text-muted);">
+                      <li><code>🔀 Auto</code> — умный баланс 50/50, отдающий приоритет непройденной стороне.</li>
+                      <li><code>🇬🇧 ENG→RUS</code> — тренировка восприятия английского языка (чтение и слух).</li>
+                      <li><code>🇷🇺 RUS→ENG</code> — тренировка активного воспоминания и перевода на английский.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 5: HOTKEYS CHEATSHEET -->
+          <div class="section-card guide-card" id="guide-hotkeys">
+            <div class="guide-card-header">
+              <span class="guide-icon-bubble">⌨️</span>
+              <div>
+                <h3>5. Горячие клавиши (Cheatsheet)</h3>
+                <p class="subtitle">Управляйте тренировкой со скоростью мысли без мышки</p>
+              </div>
+            </div>
+
+            <div class="guide-body-text">
+              <table class="data-table guide-hotkeys-table">
+                <thead>
+                  <tr>
+                    <th>Клавиша</th>
+                    <th>Действие</th>
+                    <th>Описание</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><kbd class="guide-kbd">Enter</kbd></td>
+                    <td>🔊 <strong>Озвучить слово</strong></td>
+                    <td>Произносит текущее английское слово с естественным акцентом</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd> <span class="badge-mini">(1-й раз)</span></td>
+                    <td>💡 <strong>Показать подсказку</strong></td>
+                    <td>Открывает предложение-пример с контекстом употребления</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd> <span class="badge-mini">(2-й раз)</span></td>
+                    <td>🔊 <strong>Озвучить подсказку</strong></td>
+                    <td>Произносит всё предложение-пример целиком</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">Space</kbd> / <kbd class="guide-kbd">S</kbd> / <kbd class="guide-kbd">Ы</kbd></td>
+                    <td>🔄 <strong>Перевернуть карточку</strong></td>
+                    <td>Переворачивает карточку между лицевой и обратной стороной</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">→</kbd> / <kbd class="guide-kbd">D</kbd> / <kbd class="guide-kbd">В</kbd></td>
+                    <td>🟢 <strong>Помню (Remembered)</strong></td>
+                    <td>Ответ верен — продвигает карточку вперед по интервалу</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">←</kbd> / <kbd class="guide-kbd">A</kbd> / <kbd class="guide-kbd">Ф</kbd></td>
+                    <td>🔴 <strong>Не помню (Forgot)</strong></td>
+                    <td>Ошибка — сбрасывает карточку в Box 1 для повторения завтра</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">↓</kbd> (Стрелка Вниз)</td>
+                    <td>↩ <strong>Отмена (Undo)</strong></td>
+                    <td>Возвращает предыдущую карточку и восстанавливает её состояние</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">↑</kbd> (Стрелка Вверх) / <kbd class="guide-kbd">W</kbd></td>
+                    <td>⏭️ <strong>В конец очереди</strong></td>
+                    <td>Откладывает текущую карточку на самый конец тренировочной сессии</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">0</kbd> – <kbd class="guide-kbd">5</kbd></td>
+                    <td>📦 <strong>Переместить в Box N</strong></td>
+                    <td>Вручную отправляет карточку в выбранную коробку от 0 до 5</td>
+                  </tr>
+                  <tr>
+                    <td><kbd class="guide-kbd">Escape</kbd></td>
+                    <td>🚪 <strong>Выход / Назад</strong></td>
+                    <td>Закрывает открытые модальные окна или возвращает в Dashboard</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
         </div>
       </section>
 
