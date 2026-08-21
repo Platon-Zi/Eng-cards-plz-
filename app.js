@@ -23,6 +23,7 @@ let currentTrainingQueue = [];
 let currentCardIndex = 0;
 let currentTrainingItem = null;
 let isFlipped = false;
+let hasBeenFlippedForCurrentCard = false;
 let hintUsedForCurrentCard = false;
 let sessionUndoStack = [];
 let activeBoxFilterForPractice = null;
@@ -73,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupSwipeGestures();
   setupEditModal();
   setupBackupRestoreHandlers();
+  setupGuideHandlers();
   updateStreakOnLaunch();
   renderDashboard();
   renderDictionary();
@@ -301,6 +303,71 @@ function restoreDataFromJson(file) {
     }
   };
   reader.readAsText(file);
+}
+
+// ==========================================
+// GUIDE & INSTRUCTIONS SCREEN HANDLERS
+// ==========================================
+function setupGuideHandlers() {
+  const guideLangBtns = document.querySelectorAll('.guide-lang-btn');
+  const guideViewEn = document.getElementById('guide-lang-en');
+  const guideViewRu = document.getElementById('guide-lang-ru');
+  const guideHeaderTitle = document.getElementById('guide-header-title');
+  const guideHeaderSubtitle = document.getElementById('guide-header-subtitle');
+
+  guideLangBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const lang = btn.dataset.guideLang;
+      guideLangBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+
+      if (lang === 'ru') {
+        if (guideViewEn) guideViewEn.classList.add('hidden');
+        if (guideViewRu) guideViewRu.classList.remove('hidden');
+        if (guideHeaderTitle) guideHeaderTitle.textContent = '📖 Инструкция и Руководство';
+        if (guideHeaderSubtitle) guideHeaderSubtitle.textContent = 'Система Лейтнера, занесение слов через ИИ, хранение данных, выгрузка/загрузка и горячие клавиши';
+      } else {
+        if (guideViewEn) guideViewEn.classList.remove('hidden');
+        if (guideViewRu) guideViewRu.classList.add('hidden');
+        if (guideHeaderTitle) guideHeaderTitle.textContent = '📖 User Guide & Manual';
+        if (guideHeaderSubtitle) guideHeaderSubtitle.textContent = 'Leitner box system, AI word import, data storage, export/import and keyboard shortcuts';
+      }
+    });
+  });
+
+  // Prompt Copy Button in EN Guide
+  const btnCopyPromptEn = document.getElementById('btn-guide-copy-prompt-en');
+  const promptCodeEn = document.getElementById('guide-prompt-code-en');
+  if (btnCopyPromptEn && promptCodeEn) {
+    btnCopyPromptEn.addEventListener('click', () => {
+      const text = promptCodeEn.textContent.trim();
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          const originalText = btnCopyPromptEn.textContent;
+          btnCopyPromptEn.textContent = '✅ Copied!';
+          setTimeout(() => { btnCopyPromptEn.textContent = originalText; }, 2000);
+          showToast('📋 AI prompt copied to clipboard!', 'success');
+        })
+        .catch(() => showToast('Failed to copy prompt to clipboard', 'error'));
+    });
+  }
+
+  // Prompt Copy Button in RU Guide
+  const btnCopyPromptRu = document.getElementById('btn-guide-copy-prompt-ru');
+  const promptCodeRu = document.getElementById('guide-prompt-code-ru');
+  if (btnCopyPromptRu && promptCodeRu) {
+    btnCopyPromptRu.addEventListener('click', () => {
+      const text = promptCodeRu.textContent.trim();
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          const originalText = btnCopyPromptRu.textContent;
+          btnCopyPromptRu.textContent = '✅ Скопировано!';
+          setTimeout(() => { btnCopyPromptRu.textContent = originalText; }, 2000);
+          showToast('📋 Промпт для нейросети скопирован в буфер обмена!', 'success');
+        })
+        .catch(() => showToast('Не удалось скопировать промпт', 'error'));
+    });
+  }
 }
 
 // ==========================================
@@ -703,6 +770,7 @@ function renderCurrentCard() {
   const { card, direction } = currentTrainingItem;
   
   isFlipped = false;
+  hasBeenFlippedForCurrentCard = false;
   hintUsedForCurrentCard = false;
 
   const flashcard = document.getElementById('flashcard');
@@ -710,9 +778,6 @@ function renderCurrentCard() {
     flashcard.style.transition = 'none';
     flashcard.style.transform = 'rotateY(0deg)';
     flashcard.classList.remove('flipped');
-    requestAnimationFrame(() => {
-      if (flashcard) flashcard.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
-    });
   }
 
   // Reset hint UI
@@ -857,6 +922,11 @@ function toggleFlipCard() {
   isFlipped = !isFlipped;
   const flashcard = document.getElementById('flashcard');
   if (!flashcard) return;
+
+  if (isFlipped) {
+    hasBeenFlippedForCurrentCard = true;
+  }
+
   flashcard.style.transition = 'transform 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
   if (isFlipped) {
     flashcard.classList.add('flipped');
@@ -1400,14 +1470,22 @@ function setupEventHandlers() {
         }
 
         if (currentTrainingItem && currentTrainingItem.card) {
+          const { card, direction } = currentTrainingItem;
+          const isRusToEng = direction === 'rus-eng';
+
           if (e.shiftKey) {
             // Shift + Enter:
             if (!hintUsedForCurrentCard) {
-              // 1st press: reveal hint
+              // 1st press: reveal hint (shows Russian example in RUS->ENG, English example in ENG->RUS)
               useHint();
             } else {
               // 2nd press: speak hint (example sentence)
-              const ex = currentTrainingItem.card.example;
+              // In RUS->ENG mode, if the card has NOT been flipped yet, do NOT pronounce English example sentence to avoid giving away the answer
+              if (isRusToEng && !hasBeenFlippedForCurrentCard) {
+                return;
+              }
+
+              const ex = card.example;
               if (ex && ex.trim() !== '') {
                 speakEnglish(ex.trim());
                 showToast('🔊 Playing example sentence...', 'info');
@@ -1417,7 +1495,12 @@ function setupEventHandlers() {
             }
           } else {
             // Plain Enter: speak English word
-            const w = currentTrainingItem.card.word;
+            // In RUS->ENG mode, if the card has NOT been flipped yet, do NOT pronounce English word to avoid giving away the answer
+            if (isRusToEng && !hasBeenFlippedForCurrentCard) {
+              return;
+            }
+
+            const w = card.word;
             if (w && w.trim() !== '') {
               speakEnglish(w.trim());
             }
