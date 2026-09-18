@@ -133,6 +133,24 @@ const $ = sel => d.querySelector(sel);
   rec('легенда: сумма = размер базы', ribbonSum === Number(w.LEITNER_DATA.cards.length), ribbonSum + ' vs ' + w.LEITNER_DATA.cards.length);
   rec('тултип графиков в разметке и скрыт', !!$('#chart-tooltip') && $('#chart-tooltip').hidden);
 
+  // ── 9. Регрессия: click-биндинг доната переживает перерисовки ─────────────
+  // Баг из browser-ревью: hover-redraw пересоздавал canvas._chart и терял
+  // .click, поэтому клик по срезу (всегда предваряемый наведением) не работал.
+  const clickSurvives = w.eval(`(function(){
+    var c = document.getElementById('chart-stages');
+    if (!c || typeof drawFallbackDonutChart !== 'function') return 'skip';
+    drawFallbackDonutChart(c, ['A','B'], [3,7], ['#f00','#0f0']);
+    c._chart.click = function(){ window.__clickFired = true; };
+    c._chart.redraw(0);
+    if (typeof c._chart.click !== 'function') return 'lost-on-hover-redraw';
+    drawFallbackDonutChart(c, ['A','B'], [3,7], ['#f00','#0f0']);
+    if (typeof c._chart.click !== 'function') return 'lost-on-full-redraw';
+    c._chart.click(0);
+    return window.__clickFired ? 'ok' : 'handler-not-fired';
+  })()`);
+  rec('клик по срезу переживает перерисовки (регрессия ревью)',
+    clickSurvives === 'ok' || clickSurvives === 'skip', clickSurvives);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

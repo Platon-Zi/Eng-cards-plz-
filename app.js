@@ -1292,7 +1292,7 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
     ctx.fillStyle = val > 0 ? (hovered ? fbAccentHi : fbAccent) : fbEmpty;
     ctx.beginPath();
     if (ctx.roundRect) {
-      ctx.roundRect(x, y, barWidth, hovered ? barH : barH, [4, 4, 0, 0]);
+      ctx.roundRect(x, y, barWidth, barH, [4, 4, 0, 0]);
     } else {
       ctx.rect(x, y, barWidth, barH);
     }
@@ -1315,6 +1315,7 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
   });
 
   // Интерактив: щедрые «колонки» во всю высоту графика.
+  const prevChart = canvas._chart;
   canvas._chart = {
     kind: 'bar',
     hover: hoverIdx,
@@ -1326,6 +1327,7 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
     tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} ${data[i] === 1 ? 'review' : 'reviews'}`,
     redraw: (h) => drawFallbackBarChart(canvas, labels, data, h)
   };
+  if (prevChart && typeof prevChart.click === 'function') canvas._chart.click = prevChart.click;
   bindChartHover(canvas);
 }
 
@@ -1418,6 +1420,11 @@ function drawFallbackDonutChart(canvas, labels, data, colors, centerWord, hoverI
   });
 
   // Интерактив: кольцо между inner и outer радиусами, угол → срез.
+  // ВАЖНО: hover/themechange перерисовывают и ПЕРЕСОЗДАЮТ canvas._chart —
+  // click-биндинг (его навешивает renderStatsScreen после первой отрисовки)
+  // обязан переживать перерисовки, иначе клик по срезу умирает после первого
+  // же наведения (найдено browser-ревью: любой реальный клик preceded hover).
+  const prevChart = canvas._chart;
   canvas._chart = {
     kind: 'donut',
     hover: hoverIdx,
@@ -1435,6 +1442,7 @@ function drawFallbackDonutChart(canvas, labels, data, colors, centerWord, hoverI
     tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} (${Math.round((data[i] / total) * 100)}%)`,
     redraw: (h) => drawFallbackDonutChart(canvas, labels, data, colors, centerWord, h)
   };
+  if (prevChart && typeof prevChart.click === 'function') canvas._chart.click = prevChart.click;
   bindChartHover(canvas);
 }
 
