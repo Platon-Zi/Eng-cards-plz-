@@ -1,20 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="beta">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leitner Cards - Offline English Flashcards</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <title>Leitner English — Offline Flashcards</title>
+  <script>
+    /* Anti-FOUC shim: apply the stored colour theme to <html> before first paint.
+       Key: eng_cards_theme · values: beta | midnight | light | sandstone · owner: theme.js.
+       Must stay tiny, inline and dependency-free; degrades to the default
+       "beta" theme when localStorage is unavailable (e.g. private mode). */
+    (function () {
+      try {
+        var t = localStorage.getItem('eng_cards_theme');
+        if (t === 'beta' || t === 'midnight' || t === 'light' || t === 'sandstone') {
+          document.documentElement.setAttribute('data-theme', t);
+        }
+      } catch (e) { /* storage blocked — keep markup default (beta) */ }
+    })();
+  </script>
+  <link rel="stylesheet" href="fonts/fonts.css">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="themes.css">
 </head>
-<body class="dark-theme">
+<body>
   <!-- Titlebar for custom window drag -->
   <div class="window-titlebar">
     <div class="app-brand">
       <span class="app-icon">📦</span>
       <span class="app-name">Leitner English</span>
+    </div>
+    <!-- Theme mini-menu (top-left, next to the brand). The button is static
+         markup so it exists before JS runs; theme.js builds the menu items,
+         wires open/close (click-outside, Escape), keyboard nav and persistence
+         under the localStorage key "eng_cards_theme". -->
+    <div class="theme-picker" id="theme-picker">
+      <button type="button" class="theme-picker-btn" id="theme-picker-btn"
+              aria-haspopup="true" aria-expanded="false" aria-controls="theme-picker-menu"
+              aria-label="Colour theme" title="Colour theme">
+        <span class="theme-picker-dot" id="theme-picker-dot" aria-hidden="true"></span>
+        <span class="theme-picker-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="theme-picker-menu" id="theme-picker-menu" role="menu" aria-label="Colour theme" hidden>
+        <!-- items injected by theme.js: role="menuitemradio" + aria-checked -->
+      </div>
     </div>
   </div>
 
@@ -43,24 +71,20 @@
         <button class="nav-btn" data-screen="groups">
           <span class="icon">📁</span> Groups & Packs
         </button>
+        <button class="nav-btn" data-screen="spelling">
+          <span class="icon">✍️</span> Spelling Studio
+        </button>
+        <button class="nav-btn" data-screen="data">
+          <span class="icon">🛡️</span> Data &amp; Backup
+        </button>
+        <button class="nav-btn" data-screen="stats">
+          <span class="icon">📊</span> Statistics
+        </button>
         <button class="nav-btn" data-screen="guide">
-          <span class="icon">📖</span> Инструкция
+          <span class="icon">📖</span> Guide
         </button>
       </nav>
 
-      <div class="quick-train-box">
-        <h4>Data Backup & Safety</h4>
-        <button class="btn btn-secondary btn-block" id="btn-backup-json" style="margin-bottom: 8px;">
-          💾 Save Backup (JSON)
-        </button>
-        <button class="btn btn-secondary btn-block" id="btn-copy-english-list" style="margin-bottom: 8px;">
-          📋 Copy English List
-        </button>
-        <button class="btn btn-secondary btn-block" id="btn-restore-json">
-          📤 Restore Backup
-        </button>
-        <input type="file" id="input-restore-json-file" accept=".json" hidden>
-      </div>
     </aside>
 
     <!-- Main Content Area -->
@@ -76,7 +100,7 @@
               <span class="hero-icon">🚀</span>
               <div class="hero-text">
                 <span class="hero-title">Practice (Review)</span>
-                <span class="hero-sub" id="hero-due-text">Smart review for Boxes 1-5</span>
+                <span class="hero-sub" id="hero-due-text">Reviews due today — all directions</span>
               </div>
             </button>
           </div>
@@ -85,121 +109,157 @@
               <span class="hero-icon">🏦</span>
               <div class="hero-text">
                 <span class="hero-title">Learn New Words</span>
-                <span class="hero-sub" id="hero-learn-text">Study words from the Bank</span>
+                <span class="hero-sub" id="hero-learn-text">Words waiting in the Bank</span>
               </div>
             </button>
           </div>
         </div>
 
-
-
-        <!-- Leitner Boxes Visualizer -->
-        <div class="section-card boxes-section">
-          <div class="section-header">
-            <h3>📦 Leitner Box System</h3>
-            <span class="info-tag">Two-Step Verification (ENG↔RUS)</span>
+        <!-- Quick Metrics (Dashboard KPI) -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-icon blue">🏦</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-total">0</div>
+              <div class="metric-label">In the Bank</div>
+            </div>
           </div>
-          <div class="boxes-container">
-            
-            <div class="box-row box-row-bank" data-box="0">
-              <div class="box-meta">
-                <span class="box-number bank">🏦</span>
-                <div class="box-title">
-                  <strong>Word Bank (To Learn)</strong>
-                  <span>Newly added & unlearned words</span>
+          <div class="metric-card">
+            <div class="metric-icon amber">⏰</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-due">0</div>
+              <div class="metric-label">Due today</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon green">🏆</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-learned">0</div>
+              <div class="metric-label">MASTERED (30 days)</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon purple">🎯</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-accuracy">0%</div>
+              <div class="metric-label">Accuracy</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================================
+             KNOWLEDGE GROUPS PANEL (contract §5.3)
+             Replaces the retired Leitner boxes visualizer entirely.
+             CSS hooks: .kg-row > .kg-meta (.kg-icon / .kg-name / .kg-caption)
+                        + .kg-bar-wrapper > .kg-bar  + .kg-count
+             Colour modifiers on .kg-row/.kg-icon/.kg-bar:
+                        .grp-bank|.grp-new|.grp-learning|.grp-familiar|
+                        .grp-confident|.grp-mastered
+             Rows are clickable: app.js binds openGroupInDictionary(groupKey)
+             to .kg-row[data-group]. Counters #kg-count-<g>, share bars #kg-bar-<g>.
+             ============================================================ -->
+        <div class="section-card kg-section" id="knowledge-panel">
+          <div class="section-header">
+            <h3>📈 Knowledge Groups</h3>
+            <span class="info-tag">INTERVALS = [0, 1, 2, 4, 7, 14, 30] days · L6 ceiling</span>
+          </div>
+
+          <div class="kg-container" id="knowledge-rows">
+
+            <div class="kg-row" data-group="bank">
+              <div class="kg-meta">
+                <span class="kg-icon grp-bank">🏦</span>
+                <div class="kg-name">
+                  <strong>Bank</strong>
+                  <span class="kg-caption">not started yet</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar bank-bar" id="box-bar-0" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-bank" id="kg-bar-bank" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-0">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-bank">0</b> words</div>
             </div>
 
-            <div class="box-row" data-box="1">
-              <div class="box-meta">
-                <span class="box-number">1</span>
-                <div class="box-title">
-                  <strong>Box 1</strong>
-                  <span>Every day (New & Mistakes)</span>
+            <div class="kg-row" data-group="new">
+              <div class="kg-meta">
+                <span class="kg-icon grp-new">✨</span>
+                <div class="kg-name">
+                  <strong>NEW</strong>
+                  <span class="kg-caption">level 0 · shown in the same session</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar" id="box-bar-1" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-new" id="kg-bar-new" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-1">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-new">0</b> words</div>
             </div>
 
-            <div class="box-row" data-box="2">
-              <div class="box-meta">
-                <span class="box-number">2</span>
-                <div class="box-title">
-                  <strong>Box 2</strong>
-                  <span>Every 3 days</span>
+            <div class="kg-row" data-group="learning">
+              <div class="kg-meta">
+                <span class="kg-icon grp-learning">🌱</span>
+                <div class="kg-name">
+                  <strong>LEARNING</strong>
+                  <span class="kg-caption">1 day</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar" id="box-bar-2" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-learning" id="kg-bar-learning" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-2">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-learning">0</b> words</div>
             </div>
 
-            <div class="box-row" data-box="3">
-              <div class="box-meta">
-                <span class="box-number">3</span>
-                <div class="box-title">
-                  <strong>Box 3</strong>
-                  <span>Every 7 days</span>
+            <div class="kg-row" data-group="familiar">
+              <div class="kg-meta">
+                <span class="kg-icon grp-familiar">🔵</span>
+                <div class="kg-name">
+                  <strong>FAMILIAR</strong>
+                  <span class="kg-caption">2–4 days</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar" id="box-bar-3" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-familiar" id="kg-bar-familiar" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-3">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-familiar">0</b> words</div>
             </div>
 
-            <div class="box-row" data-box="4">
-              <div class="box-meta">
-                <span class="box-number">4</span>
-                <div class="box-title">
-                  <strong>Box 4</strong>
-                  <span>Every 14 days</span>
+            <div class="kg-row" data-group="confident">
+              <div class="kg-meta">
+                <span class="kg-icon grp-confident">🟣</span>
+                <div class="kg-name">
+                  <strong>CONFIDENT</strong>
+                  <span class="kg-caption">7–14 days</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar" id="box-bar-4" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-confident" id="kg-bar-confident" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-4">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-confident">0</b> words</div>
             </div>
 
-            <div class="box-row" data-box="5">
-              <div class="box-meta">
-                <span class="box-number">5</span>
-                <div class="box-title">
-                  <strong>Box 5</strong>
-                  <span>Every 30 days (Mastered)</span>
+            <div class="kg-row" data-group="mastered">
+              <div class="kg-meta">
+                <span class="kg-icon grp-mastered">🏆</span>
+                <div class="kg-name">
+                  <strong>MASTERED</strong>
+                  <span class="kg-caption">30 days · ceiling</span>
                 </div>
               </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar" id="box-bar-5" style="width: 0%;"></div>
+              <div class="kg-bar-wrapper">
+                <div class="kg-bar grp-mastered" id="kg-bar-mastered" style="width: 0%;"></div>
               </div>
-              <div class="box-count"><b id="box-count-5">0</b> words</div>
+              <div class="kg-count"><b id="kg-count-mastered">0</b> words</div>
             </div>
 
-            <!-- Archive box -->
-            <div class="box-row archive-row" data-box="archive">
-              <div class="box-meta">
-                <span class="box-number archive">✓</span>
-                <div class="box-title">
-                  <strong>Archived</strong>
-                  <span>Fully learned</span>
-                </div>
-              </div>
-              <div class="box-bar-wrapper">
-                <div class="box-bar archive-bar" id="box-bar-archive" style="width: 0%;"></div>
-              </div>
-              <div class="box-count"><b id="box-count-archive">0</b> words</div>
-            </div>
+          </div>
 
+          <!-- Due-now summary: total due direction-entries + per-direction split (§5.3) -->
+          <div class="kg-due-summary">
+            <div class="due-summary-title">⏰ Due Today</div>
+            <div class="due-summary-total"><b id="dash-due-now">0</b> direction entries due</div>
+            <div class="due-summary-split">
+              <span class="due-split-item">🇬🇧 ENG→RUS <b id="dash-due-en-ru">0</b></span>
+              <span class="due-split-item">🇷🇺 RUS→ENG <b id="dash-due-ru-en">0</b></span>
+            </div>
           </div>
         </div>
       </section>
@@ -218,7 +278,7 @@
             </button>
           </div>
           <div class="training-progress-info">
-            <span id="train-mode-title">System Mode</span>
+            <span id="train-mode-title">Smart queue · due directions</span>
             <span class="badge" id="train-counter">0 / 0</span>
           </div>
         </header>
@@ -243,15 +303,23 @@
                 
                 <!-- Front Side: Clean Word & Transcription -->
                 <div class="card-face card-front">
-                  <div class="card-box-indicator" id="card-box-indicator-front">0</div>
+                  <!-- Corner chrome (§5.2): direction · level pill · due note.
+                       Replaces the retired single-value corner badge; .card-corner-meta
+                       occupies the same corner area, so the existing card layout still works.
+                       JS swaps .grp-* modifiers on #card-level-pill-front / -back. -->
+                  <div class="card-corner-meta">
+                    <span class="card-dir-indicator" id="card-dir-indicator-front">EN → RU</span>
+                    <span class="card-level-pill grp-new" id="card-level-pill-front">L0 · NEW</span>
+                    <span class="card-due-note" id="card-due-note-front">due today</span>
+                  </div>
                   <div class="card-center-content">
                     <div class="card-word-row">
                       <h1 class="card-word-large" id="card-word-text">Reluctant</h1>
-                      <button class="btn-speak hidden" id="btn-speak-word" title="Listen to word pronunciation" aria-label="Listen to word pronunciation">🔊</button>
+                      <button class="btn-speak hidden" id="btn-speak-word" title="Listen to word pronunciation (Enter)" aria-label="Listen to word pronunciation">🔊</button>
                     </div>
                     <span class="card-phonetic-sub hidden" id="card-phonetic-text">[rɪˈlʌktənt]</span>
                     <button class="btn btn-hint-minimal" id="btn-hint">
-                      💡 Hint
+                      💡 Hint <kbd class="guide-kbd">⇧</kbd><kbd class="guide-kbd">Enter</kbd>
                     </button>
                     <div class="hint-container hidden" id="hint-container">
                       <div class="hint-text" id="hint-display"></div>
@@ -262,11 +330,16 @@
 
                 <!-- Back Side: Translation, English Example & Russian Example Translation -->
                 <div class="card-face card-back">
-                  <div class="card-box-indicator" id="card-box-indicator-back">0</div>
+                  <!-- Corner chrome (§5.2), mirrors the front face -->
+                  <div class="card-corner-meta">
+                    <span class="card-dir-indicator" id="card-dir-indicator-back">RU → EN</span>
+                    <span class="card-level-pill grp-new" id="card-level-pill-back">L0 · NEW</span>
+                    <span class="card-due-note" id="card-due-note-back">due today</span>
+                  </div>
                   <div class="card-center-content">
                     <div class="back-word-row">
                       <span class="back-original-sub" id="card-back-original">Reluctant</span>
-                      <button class="btn-speak hidden" id="btn-speak-back-word" title="Listen to English word" aria-label="Listen to English word">🔊</button>
+                      <button class="btn-speak hidden" id="btn-speak-back-word" title="Listen to English word (Enter)" aria-label="Listen to English word">🔊</button>
                     </div>
                     <h1 class="card-translation-large" id="card-translation-text">Неохотный / Вынужденный</h1>
                     
@@ -283,19 +356,18 @@
               </div>
             </div>
 
-            <!-- Bottom Small Controls & Box Keys Tip -->
-            <div class="tinder-controls">
-              <button class="btn btn-tinder btn-nope" id="btn-swipe-left" title="Forgot / Wrong [A / ←]">
-                🔴 Forgot
-                <kbd>A / ←</kbd>
-              </button>
-              <div class="shortcut-tip-box">
-                <span>Space: Flip | Enter: 🔊 Word | Shift+Enter: 💡 Hint/🔊 | ←/A: 🔴 | →/D: 🟢</span>
-              </div>
-              <button class="btn btn-tinder btn-like" id="btn-swipe-right" title="Remembered! [D / →]">
-                🟢 Remembered
-                <kbd>D / →</kbd>
-              </button>
+            <!-- Answer controls (§5.1) — replaces the old two-button swipe pair and
+                 the retired four-rating bar. Exactly three buttons; gesture swipes on the
+                 card stay wired in app.js (left = 🔴 Forgot, right = 🟢 Easy). -->
+            <div class="answer-controls no-flip">
+              <button class="btn-answer btn-answer-again" id="btn-answer-again" title="Forgot [1 / ← / A]">🔴 Forgot<kbd>1 / ←</kbd></button>
+              <button class="btn-answer btn-answer-hard"  id="btn-answer-hard"  title="Hard [2]">🟠 Hard<kbd>2</kbd></button>
+              <button class="btn-answer btn-answer-easy"  id="btn-answer-easy"  title="Easy [3 / → / D]">🟢 Easy<kbd>3 / →</kbd></button>
+            </div>
+
+            <!-- Shortcut tip line, key map per §5.7 -->
+            <div class="shortcut-tip-box">
+              <span>Space: flip card · Enter: 🔊 word · Shift+Enter: 💡 hint → 🔊 example · 1 / ← / A: 🔴 Forgot · 2: 🟠 Hard · 3 / → / D: 🟢 Easy · ↓: undo · ↑ / W: to end of queue</span>
             </div>
 
           </div>
@@ -329,7 +401,7 @@
                 <h4>💡 Prompt for Gemini Bot (to generate JSON):</h4>
                 <p>Copy and send this prompt to your Gemini bot, then paste the resulting JSON below:</p>
                 <div class="code-block">
-                  <code>Я буду отправлять тебе английские слова. Составляй для каждого JSON-объект со свойствами: word, transcription, translation (с уточнением сущ./гл.), part_of_speech, example, example_translation. Возвращай ТОЛЬКО чистый массив JSON [ { ... } ].</code>
+                  <code lang="en">I want to add new English words to my flashcard app. Build a clean JSON array of objects for them, without any extra text, markdown or explanations. Each object must have these fields: "word" (the English word or phrase), "transcription" (IPA, e.g. "[wɜːrk]"), "translation" (accurate Russian translation), "part_of_speech" ("noun", "verb", "adjective", "adverb", "phrase" or "other"; an array like ["noun","verb"] is allowed), "example" (a natural English sentence), "example_translation" (Russian translation of the example), "batch_title" (optional theme name). Return ONLY a valid clean JSON array [ { ... } ].</code>
                   <button class="btn btn-sm btn-secondary" id="btn-copy-prompt">📋 Copy Prompt for Gemini</button>
                 </div>
               </div>
@@ -425,7 +497,7 @@
         </div>
       </section>
 
-      <!-- SCREEN 4: DICTIONARY TABLE & BOX MANAGEMENT -->
+      <!-- SCREEN 4: DICTIONARY & KNOWLEDGE-GROUP FILTER (§5.4) -->
       <section id="screen-dictionary" class="screen">
         <header class="page-header">
           <div>
@@ -433,8 +505,8 @@
             <p class="subtitle" id="dict-subtitle">Manage flashcards, search, edit, and export</p>
           </div>
           <div class="header-actions" style="display: flex; gap: 10px; align-items: center;">
-            <button class="btn btn-primary hidden" id="btn-practice-box">
-              🚀 Practice Words in This Box
+            <button class="btn btn-primary hidden" id="btn-practice-group">
+              🚀 Practice
             </button>
             <button class="btn btn-secondary" id="btn-export-csv">
               📥 Export CSV
@@ -450,120 +522,475 @@
             <span class="search-icon">🔍</span>
             <input type="text" id="dict-search-input" placeholder="Search by word or translation...">
           </div>
-          <select id="dict-filter-box" class="filter-select">
-            <option value="all">All Boxes</option>
-            <option value="0">Box 0 (Word Bank)</option>
-            <option value="1">Box 1</option>
-            <option value="2">Box 2</option>
-            <option value="3">Box 3</option>
-            <option value="4">Box 4</option>
-            <option value="5">Box 5</option>
-            <option value="archive">🏆 Archive (Learned)</option>
+          <!-- Knowledge-group filter (§5.4). Empty value = all words;
+               "due" = at least one direction is due today. -->
+          <select id="dict-filter-group" class="filter-select">
+            <option value="">All words</option>
+            <option value="bank">🏦 Bank (not studied)</option>
+            <option value="new">✨ NEW</option>
+            <option value="learning">🌱 LEARNING</option>
+            <option value="familiar">🔵 FAMILIAR</option>
+            <option value="confident">🟣 CONFIDENT</option>
+            <option value="mastered">🏆 MASTERED</option>
+            <option value="due">⏰ Due today</option>
           </select>
         </div>
 
         <div class="dictionary-grid-wrapper" id="dict-cards-grid">
-          <!-- Dynamically rendered cards -->
+          <!-- Tiles are built by app.js (§5.4): .dict-card per word, carrying
+               a derived-group badge `.kg-badge.grp-<group>` (grp-bank | grp-new |
+               grp-learning | grp-familiar | grp-confident | grp-mastered) plus two
+               direction caption rows with ids #dict-card-dir-en / #dict-card-dir-ru
+               rendered like «EN→RUS L4 · 7дн» / «RUS→ENG L1 · 1дн». -->
         </div>
       </section>
 
-      <!-- SCREEN: GUIDE & INSTRUCTIONS -->
+      <!-- SCREEN: GUIDE & INSTRUCTIONS (bilingual EN / RU) -->
       <section id="screen-guide" class="screen">
         <header class="page-header">
           <div>
-            <h1>📖 Инструкция и Руководство</h1>
-            <p class="subtitle">Идея системы Лейтнера, занесение слов через ИИ, хранение данных и горячие клавиши</p>
+            <h1 id="guide-header-title">📖 User Guide & Manual</h1>
+            <p class="subtitle" id="guide-header-subtitle">Two independent recall vectors, knowledge groups, AI word import, offline storage and keyboard shortcuts</p>
+          </div>
+          <div class="guide-lang-switcher">
+            <button class="guide-lang-btn active" data-guide-lang="en">🇬🇧 EN</button>
+            <button class="guide-lang-btn" data-guide-lang="ru">🇷🇺 RU</button>
           </div>
           <button class="btn btn-secondary btn-back-dash">
             ← Back to Dashboard
           </button>
         </header>
 
-        <!-- Quick Jump Navigation Pills -->
-        <div class="guide-quick-nav">
-          <a href="#guide-philosophy" class="guide-pill">🧠 Идея & Лейтнер</a>
-          <a href="#guide-import" class="guide-pill">🤖 Занесение & Промпт</a>
-          <a href="#guide-storage" class="guide-pill">☁️ Хранение & Бэкапы</a>
-          <a href="#guide-modes" class="guide-pill">🎯 Режимы обучения</a>
-          <a href="#guide-hotkeys" class="guide-pill">⌨️ Горячие клавиши</a>
-        </div>
+        <!-- ===================== ENGLISH VIEW ===================== -->
+        <div id="guide-lang-en" class="guide-lang-view" lang="en">
 
-        <div class="guide-content-wrapper">
-
-          <!-- SECTION 1: PHILOSOPHY & LEITNER SYSTEM -->
-          <div class="section-card guide-card" id="guide-philosophy">
-            <div class="guide-card-header">
-              <span class="guide-icon-bubble">🧠</span>
-              <div>
-                <h3>1. Идея и смысл приложения (Система Лейтнера)</h3>
-                <p class="subtitle">Интервальное повторение для переноса слов в долговременную память</p>
-              </div>
-            </div>
-            
-            <div class="guide-body-text">
-              <p>
-                Приложение построено на <strong>методе интервальных повторений Себастьяна Лейтнера</strong> с <strong>двухсторонней верификацией</strong> (ENG ➔ RUS и RUS ➔ ENG).
-                Слова не зубрятся вслепую, а повторяются ровно в тот момент, когда мозг начинает их забывать.
-              </p>
-
-              <div class="leitner-explainer-grid">
-                <div class="leitner-step-card">
-                  <div class="step-badge bank-badge">🏦 Bank (Box 0)</div>
-                  <div class="step-title">Банк новых слов</div>
-                  <div class="step-desc">Сюда попадают все только что добавленные слова. Они ждут первого изучения в режиме <em>Learn New Words</em>.</div>
-                </div>
-                <div class="leitner-step-card">
-                  <div class="step-badge box-1-badge">Box 1 • Каждый день</div>
-                  <div class="step-title">Новые & Ошибки</div>
-                  <div class="step-desc">Слова, которые вы только начали учить или в которых ошиблись. Требуют ежедневного повторения.</div>
-                </div>
-                <div class="leitner-step-card">
-                  <div class="step-badge box-2-badge">Box 2 • Раз в 3 дня</div>
-                  <div class="step-title">Первое закрепление</div>
-                  <div class="step-desc">Слово вспомнилось без ошибок в Box 1 и перешло на следующий интервал.</div>
-                </div>
-                <div class="leitner-step-card">
-                  <div class="step-badge box-3-badge">Box 3 • Раз в 7 дней</div>
-                  <div class="step-title">Уверенное знание</div>
-                  <div class="step-desc">Интервал увеличивается до недели. Мозг формирует прочные нейронные связи.</div>
-                </div>
-                <div class="leitner-step-card">
-                  <div class="step-badge box-4-badge">Box 4 • Раз в 14 дней</div>
-                  <div class="step-title">Долговременная память</div>
-                  <div class="step-desc">Проверка через две недели. Слово почти перешло в активный запас.</div>
-                </div>
-                <div class="leitner-step-card">
-                  <div class="step-badge box-5-badge">Box 5 • Раз в 30 дней</div>
-                  <div class="step-title">Финальная проверка</div>
-                  <div class="step-desc">Контрольный рубеж через месяц. Если слово вспомнилось — оно отправляется в <strong>Архив 🏆</strong>.</div>
-                </div>
-              </div>
-
-              <div class="guide-callout info">
-                <strong>🔄 Двухсторонняя верификация:</strong> Чтобы слово перешло в следующую коробку, вы должны успешно вспомнить его <strong>в обоих направлениях</strong> (с английского на русский и с русского на английский). Любая ошибка сбрасывает слово в <strong>Box 1</strong>.
-              </div>
-            </div>
+          <div class="guide-quick-nav">
+            <a href="#guide-philosophy-en" class="guide-pill">🧠 The Idea</a>
+            <a href="#guide-import-en" class="guide-pill">🤖 Import & AI Prompt</a>
+            <a href="#guide-storage-en" class="guide-pill">☁️ Storage & Backups</a>
+            <a href="#guide-modes-en" class="guide-pill">🎯 Modes & Queue</a>
+            <a href="#guide-hotkeys-en" class="guide-pill">⌨️ Hotkeys</a>
           </div>
 
-          <!-- SECTION 2: IMPORT & AI PROMPT -->
-          <div class="section-card guide-card" id="guide-import">
-            <div class="guide-card-header">
-              <span class="guide-icon-bubble">🤖</span>
-              <div>
-                <h3>2. Занесение слов и Промпт для нейросетей</h3>
-                <p class="subtitle">Как быстро генерировать и импортировать готовые карточки через Gemini / ChatGPT / Claude</p>
+          <div class="guide-content-wrapper">
+
+            <!-- EN SECTION 1: THE IDEA -->
+            <div class="section-card guide-card" id="guide-philosophy-en">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🧠</span>
+                <div>
+                  <h3>1. The idea behind the app</h3>
+                  <p class="subtitle">Two independent recall vectors, seven levels, a 30-day ceiling</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <p>
+                  The engine is classic <strong>spaced repetition</strong>: a word comes back exactly at the moment your
+                  memory of it starts to sag. What is different is the shape of the state — nothing is ever shuffled
+                  between containers. Every word carries its own clocks, and each clock is just a level plus a date.
+                </p>
+
+                <div class="guide-grid-2col">
+                  <div class="guide-info-block">
+                    <h4>🏦 The Bank stays silent</h4>
+                    <p>Imported words rest in the <strong>Bank</strong> (<code>status: BANK</code>). A Bank word is <em>stored, not scheduled</em>: it enters no queue until you consciously start learning it.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>⚡ One answer activates it</h4>
+                    <p>Your first answer on a Bank word flips it to <code>ACTIVE</code>, sets both vectors to level 0 and makes them due today. This happens in <em>Learn</em> mode — or wherever else the word is served.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🧭 Two vectors, no gates</h4>
+                    <p><strong>ENG ➔ RUS</strong> (recognition) and <strong>RUS ➔ ENG</strong> (production) live their own lives: separate level, separate due date. An answer touches <strong>only the side you just saw</strong> — the other is never moved, blocked or averaged. Reaching the second side is not a condition for advancing the first.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🔴🟢 Three answers, that is all</h4>
+                    <p><strong>Forgot</strong> (🔴 <span lang="ru">«Забыл»</span>) resets that vector, <strong>Hard</strong> (🟠 <span lang="ru">«Сложно»</span>) freezes it at the current interval, <strong>Easy</strong> (🟢 <span lang="ru">«Легко»</span>) lifts it one level up. The old four-grade rating is gone — effort is expressed by the middle button.</p>
+                  </div>
+                </div>
+
+                <h4 style="margin-top: 18px; margin-bottom: 8px;">The ladder: <code>INTERVALS = [0, 1, 2, 4, 7, 14, 30]</code></h4>
+                <p>A level is an index into that table; its value is how many days the next repeat waits. Six successful steps carry a vector from NEW to the ceiling.</p>
+                <div class="leitner-explainer-grid">
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-bank">🏦 Bank · not started</div>
+                    <div class="step-title">Isolated</div>
+                    <div class="step-desc">Imported and waiting. Never appears in a review queue before its first answer.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-new">L0 · NEW · 0 days</div>
+                    <div class="step-title">Same day</div>
+                    <div class="step-desc">Just activated. Eligible again inside the same day, but one (word, side) shows once per session.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-learning">L1 · LEARNING · 1 day</div>
+                    <div class="step-title">Tomorrow</div>
+                    <div class="step-desc">The consolidation step. A forgotten word also lands back here.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-familiar">L2 · FAMILIAR · 2 days</div>
+                    <div class="step-title">First stretch</div>
+                    <div class="step-desc">Recalled cleanly once — the gap doubles.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-familiar">L3 · FAMILIAR · 4 days</div>
+                    <div class="step-title">Getting solid</div>
+                    <div class="step-desc">Still counted as FAMILIAR; the last step before a reset stops being harsh.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-confident">L4 · CONFIDENT · 7 days</div>
+                    <div class="step-title">Weekly recall</div>
+                    <div class="step-desc">A durable connection: one touch a week keeps it alive.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-confident">L5 · CONFIDENT · 14 days</div>
+                    <div class="step-title">Bi-weekly</div>
+                    <div class="step-desc">Two weeks without a look — the word is close to active vocabulary.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-mastered">L6 · MASTERED · 30 days</div>
+                    <div class="step-title">The ceiling</div>
+                    <div class="step-desc">Monthly maintenance forever. There is nowhere higher to go.</div>
+                  </div>
+                </div>
+
+                <div class="guide-callout info" style="margin-top: 14px;">
+                  <strong>📈 Groups are derived, never stored:</strong> a word reports as the group of its <em>weaker</em> vector —
+                  <code>min(level_en_ru, level_ru_en)</code>; Bank words report as <code>BANK</code>. That is why the six dashboard
+                  rows can never drift out of sync with the data, and why there is no <code>knowledge_group</code> field to maintain.
+                </div>
+                <div class="guide-callout info">
+                  <strong>🏆 Level 6 is a ceiling, not an exit:</strong> a MASTERED word returns after 30 days and stays in rotation for good.
+                  Nothing retires, nothing disappears — one slip lowers that single vector while the other side keeps its own schedule.
+                </div>
+                <div class="guide-callout info">
+                  <strong>🎯 Reset is asymmetric:</strong> “Forgot” sends a vector to <code>L1</code> up to level 3 and to <code>L2</code> from level 4 up —
+                  the deeper the trace, the gentler the fall. “Hard” on L0 keeps the word eligible today by design
+                  (<code>INTERVALS[0] = 0</code>); the session de-duplicates it, and pressing Practice again later shows it once more.
+                </div>
               </div>
             </div>
 
-            <div class="guide-body-text">
-              <p>Вам не нужно вручную вбивать транскрипции, переводы и примеры предложений. Отправьте список нужных слов любой нейросети с нашим готовым промптом:</p>
-
-              <div class="guide-prompt-container">
-                <div class="guide-prompt-header">
-                  <span>📋 Готовый системный промпт для нейросети</span>
-                  <button class="btn btn-sm btn-primary" id="btn-guide-copy-prompt">Копировать промпт</button>
+            <!-- EN SECTION 2: IMPORT & AI PROMPT -->
+            <div class="section-card guide-card" id="guide-import-en">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🤖</span>
+                <div>
+                  <h3>2. Adding words & the AI prompt</h3>
+                  <p class="subtitle">Generate ready-made cards with Gemini / ChatGPT / Claude and import them</p>
                 </div>
-                <pre class="guide-code-box"><code id="guide-prompt-code">Я буду отправлять тебе английские слова или списки слов. 
+              </div>
+              <div class="guide-body-text">
+                <p>No manual typing of transcriptions, translations and examples: send your word list to any model together with this prompt. The prompt describes <em>content only</em> — scheduling is decided by the app, not by the model.</p>
+                <div class="guide-prompt-container">
+                  <div class="guide-prompt-header">
+                    <span>📋 Ready-to-use system prompt</span>
+                    <button class="btn btn-sm btn-primary" id="btn-guide-copy-prompt-en">Copy prompt</button>
+                  </div>
+                  <pre class="guide-code-box"><code id="guide-prompt-code-en">I will send you English words or lists of English words.
+For every word build a JSON object with these mandatory fields:
+- "word": the English word
+- "phonetic": IPA transcription in square brackets, e.g. "[ˈɪnfluəns]"
+- "translation": accurate Russian translation, marked by part of speech (сущ./гл./прил.)
+- "part_of_speech": English part of speech ("noun", "verb", "adjective", "adverb", "phrase")
+- "example": a natural, real-life English sentence using the word
+- "example_translation": a fluent Russian translation of that sentence
+
+Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown fences.</code></pre>
+                </div>
+                <h4 style="margin-top: 18px; margin-bottom: 8px;">Step-by-step import:</h4>
+                <ol class="guide-steps-list">
+                  <li>Copy the prompt above and send it to the model (Gemini, ChatGPT, Claude).</li>
+                  <li>Send the list of English words you want to learn.</li>
+                  <li>Copy the returned JSON.</li>
+                  <li>Open the <strong>➕ Add Words</strong> screen in the app.</li>
+                  <li>Paste the JSON and press <strong>“🚀 Import Cards Now”</strong>.</li>
+                  <li>The words are tagged by part of speech, grouped into an import batch and placed in the <strong>Bank</strong> — nothing is scheduled yet.</li>
+                  <li>When you are ready, run <strong>🏦 Learn New Words</strong>: the first answer on each word activates it and enrols both vectors into the schedule.</li>
+                </ol>
+                <div class="guide-callout info">
+                  <strong>ℹ️ Field aliases are tolerated:</strong> <code>transcription</code>/<code>phonetic</code> and
+                  <code>partOfSpeech</code>/<code>part_of_speech</code> are read interchangeably, and a part of speech may arrive as an array —
+                  it is joined with <code> / </code> for display.
+                </div>
+              </div>
+            </div>
+
+            <!-- EN SECTION 3: STORAGE & BACKUPS -->
+            <div class="section-card guide-card" id="guide-storage-en">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">☁️</span>
+                <div>
+                  <h3>3. Data storage, transfer and backups</h3>
+                  <p class="subtitle">Offline-first files, the automatic safety snapshot and schema version 2</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <div class="guide-grid-2col">
+                  <div class="guide-info-block">
+                    <h4>⚡ Offline-first</h4>
+                    <p>The app needs no server and no account. Everything runs from the project folder: open <code>index.html</code> and it works, airplane mode included.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>📁 Where the data lives</h4>
+                    <p>Cards, history and batches are written to <code>data/leitner_data.json</code>, mirrored to <code>data/leitner_data.js</code> so the page can boot straight from a file, and cached in browser <code>localStorage</code> as the fast local copy.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🛟 Automatic snapshot</h4>
+                    <p>Before the very first save that converts an older library, the previous base is copied to <code>data/leitner_data.pre-srs.json</code> (plus the <code>localStorage</code> key <code>leitner_data_pre_srs_backup</code>) — once, and never overwritten.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>💾 Manual backups</h4>
+                    <p>The <strong>Data &amp; Backup</strong> section (left menu) offers <strong>“Save Backup (JSON)”</strong> and <strong>“Restore Backup”</strong>. A current dump carries <code>schema_version: 2</code>, so the app knows exactly which reader it is talking to.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>♻️ Restoring an old backup</h4>
+                    <p>A pre-v2 file is <strong>migrated automatically</strong> on load: schedules are rebuilt from the legacy record, counters such as <code>fail_count</code> survive, and dead fields are dropped at the first save. Idempotent — a second pass changes nothing.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🚫 Forward compatibility warning</h4>
+                    <p>A <code>schema_version: 2</code> backup <strong>cannot be read by an older build of the app</strong>. Keep the automatic snapshot, or upgrade every copy you use before restoring.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>☁️ GitHub</h4>
+                    <p>Pushing the project to <strong>GitHub</strong> commits your whole progress, words and batches — nothing is lost on reinstall.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>💻 Moving to another PC</h4>
+                    <p>Copy the folder or <code>git clone</code> it: <strong>batches and creation dates survive</strong>, because every card stores its own <code>created_at</code>. Dates are compared as local calendar days, so midnight and time zones do not shift your queue.</p>
+                  </div>
+                </div>
+                <div class="guide-callout info">
+                  <strong>🛡️ Refuse-to-save guard:</strong> a write is rejected if it would leave fewer cards than the app already has,
+                  or if an ACTIVE word ends up with an unparsable review date. Your library is never silently shrunk.
+                </div>
+              </div>
+            </div>
+
+            <!-- EN SECTION 4: MODES & QUEUE -->
+            <div class="section-card guide-card" id="guide-modes-en">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🎯</span>
+                <div>
+                  <h3>4. Training modes</h3>
+                  <p class="subtitle">What each mode pulls and what it does to your schedule</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <div class="modes-guide-list">
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag hero-practice">🚀 Practice (Review)</div>
+                    <div>
+                      <strong>The smart daily queue of due vectors.</strong>
+                      <p>It gathers <em>every</em> overdue direction of every ACTIVE word — a word with both sides due contributes two entries. Sorting puts the weakest levels first, then whoever has been overdue longest, then a seeded shuffle for variety; anti-adjacency spreads the two sides of one word apart. MASTERED support items ride at the end. No backlog cap: a long session simply ends where you stop it.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag hero-learn">🏦 Learn New Words</div>
+                    <div>
+                      <strong>First contact with the Bank.</strong>
+                      <p>Every Bank word produces two entries — ENG➔RUS and RUS➔ENG — rotated so the sides of one word are not neighbours, and both are served within the same session. The first answer (any of the three) activates the word and grades the shown vector; the later pass grades the independent second vector.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">✍️ Spelling Studio</div>
+                    <div>
+                      <strong>Dictation, typing and listening drills.</strong>
+                      <p>Letter-by-letter audio dictation, typing from audio or from translation, and a listening test with per-letter error analysis. It trains orthography and hearing — spelling answers do not move the two recall vectors.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">📁 Groups & Packs</div>
+                    <div>
+                      <strong>Targeted practice of a subset.</strong>
+                      <p>Drill words by import batch, by part of speech (only verbs, only nouns) or by your own custom groups. A group session uses the same vectors and the same intervals — it only narrows which words are offered.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">🔀 Direction filter</div>
+                    <div>
+                      <strong>Top-right of the training screen — it filters the output, it does not teach.</strong>
+                      <ul style="margin-top: 6px; padding-left: 20px; font-size: 13px; color: var(--text-muted);">
+                        <li><code>🔀 Auto</code> — serve the queue exactly as built, both vectors in one flow.</li>
+                        <li><code>🇬🇧 ENG→RUS</code> — show only recognition entries of that queue.</li>
+                        <li><code>🇷🇺 RUS→ENG</code> — show only production entries.</li>
+                      </ul>
+                      <p>Progression is untouched either way: levels and dates advance as if the filter were not there.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="guide-callout info">
+                  <strong>🧠 Suggested rhythm:</strong> <em>Learn</em> a handful of Bank words once, then live in <em>Practice</em> every day.
+                  Accuracy counts “Hard” as correct-with-effort, so a green streak does not demand perfect speed.
+                </div>
+              </div>
+            </div>
+
+            <!-- EN SECTION 5: HOTKEYS -->
+            <div class="section-card guide-card" id="guide-hotkeys-en">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">⌨️</span>
+                <div>
+                  <h3>5. Keyboard cheatsheet</h3>
+                  <p class="subtitle">Train at the speed of thought, no mouse needed</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <table class="data-table guide-hotkeys-table">
+                  <thead>
+                    <tr>
+                      <th>Key</th>
+                      <th>Action</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td><kbd class="guide-kbd">Space</kbd> / <kbd class="guide-kbd">S</kbd> / <kbd class="guide-kbd">Ы</kbd></td><td>🔄 <strong>Flip card</strong></td><td>Toggles the front and back faces of the card.</td></tr>
+                    <tr><td><kbd class="guide-kbd">Enter</kbd></td><td>🔊 <strong>Speak word</strong></td><td>Pronounces the current English word naturally.</td></tr>
+                    <tr><td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd></td><td>💡 <strong>Hint → 🔊 example</strong></td><td>First press opens the example sentence, the next press reads it aloud.</td></tr>
+                    <tr><td><kbd class="guide-kbd">1</kbd> / <kbd class="guide-kbd">←</kbd> / <kbd class="guide-kbd">A</kbd> / <kbd class="guide-kbd">Ф</kbd></td><td>🔴 <strong>Forgot</strong></td><td>Resets the answered vector: L≤3 → L1, L≥4 → L2. Counts as a mistake.</td></tr>
+                    <tr><td><kbd class="guide-kbd">2</kbd></td><td>🟠 <strong>Hard</strong></td><td>Recalled with effort — the level freezes and the interval stays the same. Scored as correct.</td></tr>
+                    <tr><td><kbd class="guide-kbd">3</kbd> / <kbd class="guide-kbd">→</kbd> / <kbd class="guide-kbd">D</kbd> / <kbd class="guide-kbd">В</kbd></td><td>🟢 <strong>Easy</strong></td><td>Effortless — the vector steps one level up along <code>INTERVALS</code>.</td></tr>
+                    <tr><td><kbd class="guide-kbd">↓</kbd></td><td>↩ <strong>Undo</strong></td><td>Returns the previous card and restores its state.</td></tr>
+                    <tr><td><kbd class="guide-kbd">↑</kbd> / <kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td><td>⏭️ <strong>To end of queue</strong></td><td>Defers the current entry to the very end of the session.</td></tr>
+                    <tr><td><kbd class="guide-kbd">Escape</kbd></td><td>🚪 <strong>Back / Exit</strong></td><td>Closes an open modal; during training returns to the screen you started from; from any other screen (even while typing) returns to the Dashboard.</td></tr>
+                    <tr><td><kbd class="guide-kbd">0</kbd></td><td>🏦 <strong>Return to Bank</strong></td><td>The current card goes back to the Bank (out of the rotation). Undoes with <kbd class="guide-kbd">↓</kbd>. The digits <kbd class="guide-kbd">1</kbd>–<kbd class="guide-kbd">5</kbd> do nothing: manual relocation is gone — the schedule belongs to the algorithm.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ===================== РУССКИЙ ВИД ===================== -->
+        <div id="guide-lang-ru" class="guide-lang-view hidden" lang="ru">
+
+          <div class="guide-quick-nav">
+            <a href="#guide-philosophy" class="guide-pill">🧠 Идея</a>
+            <a href="#guide-import" class="guide-pill">🤖 Занесение & Промпт</a>
+            <a href="#guide-storage" class="guide-pill">☁️ Хранение & Бэкапы</a>
+            <a href="#guide-modes" class="guide-pill">🎯 Режимы обучения</a>
+            <a href="#guide-hotkeys" class="guide-pill">⌨️ Горячие клавиши</a>
+          </div>
+
+          <div class="guide-content-wrapper">
+
+            <!-- SECTION 1: ИДЕЯ -->
+            <div class="section-card guide-card" id="guide-philosophy">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🧠</span>
+                <div>
+                  <h3>1. Идея и смысл приложения</h3>
+                  <p class="subtitle">Два независимых вектора прогресса, семь уровней, потолок 30 дней</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <p>
+                  В основе — классические <strong>интервальные повторения</strong>: слово возвращается ровно тогда, когда память
+                  о нём начинает проседать. Изменилась форма состояния: ничего никуда не перекладывается. Каждое слово носит
+                  собственные часы, а каждые часы — это уровень плюс дата.
+                </p>
+
+                <div class="guide-grid-2col">
+                  <div class="guide-info-block">
+                    <h4>🏦 Банк молчит</h4>
+                    <p>Импортированные слова лежат в <strong>Банке</strong> (<code>status: BANK</code>). Слово в Банке <em>хранится, но не планируется</em>: оно не попадает ни в одну очередь, пока вы сознательно не начнёте его учить.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>⚡ Активация одним ответом</h4>
+                    <p>Первый же ответ по банковскому слову переводит его в <code>ACTIVE</code>, ставит оба вектора на уровень 0 и открывает их к повтору уже сегодня. Это происходит в режиме <em>🏦 Learn New Words</em> — и вообще везде, где слово было показано.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🧭 Два вектора без гейтов</h4>
+                    <p><strong>ENG ➔ RUS</strong> (узнавание) и <strong>RUS ➔ ENG</strong> (воспроизведение) живут своей жизнью: отдельный уровень, отдельная дата. Ответ применяется <strong>только к показанной стороне</strong> — вторая не двигается, не блокируется и не усредняется. Никакой «второй верификации» для повышения не требуется.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🔴🟠 Три ответа, и это всё</h4>
+                    <p><strong>Забыл</strong> отбрасывает вектор вниз, <strong>Сложно</strong> замораживает его на текущем интервале, <strong>Легко</strong> поднимает на уровень вверх. Прежняя четырёхкнопочная оценка ушла — усилие выражается средней кнопкой.</p>
+                  </div>
+                </div>
+
+                <h4 style="margin-top: 18px; margin-bottom: 8px;">Лестница: <code>INTERVALS = [0, 1, 2, 4, 7, 14, 30]</code></h4>
+                <p>Уровень — это индекс в этой таблице, а значение — сколько дней ждёт следующее повторение. Шесть успешных шагов проводят вектор от NEW до потолка.</p>
+                <div class="leitner-explainer-grid">
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-bank">🏦 Bank · ещё не начаты</div>
+                    <div class="step-title">Изолированы</div>
+                    <div class="step-desc">Занесены и ждут. Не участвуют в повторениях до первого ответа.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-new">L0 · NEW · 0 дней</div>
+                    <div class="step-title">В тот же день</div>
+                    <div class="step-desc">Только что активно. Снова доступно сегодня, но одна пара «слово + сторона» показывается за сессию один раз.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-learning">L1 · LEARNING · 1 день</div>
+                    <div class="step-title">Завтра</div>
+                    <div class="step-desc">Шаг закрепления. Сюда же падает забытое слово.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-familiar">L2 · FAMILIAR · 2 дня</div>
+                    <div class="step-title">Первый рост</div>
+                    <div class="step-desc">Вспомнилось без ошибок — разрыв удваивается.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-familiar">L3 · FAMILIAR · 4 дня</div>
+                    <div class="step-title">Увереннее</div>
+                    <div class="step-desc">Всё ещё FAMILIAR; последняя ступень, после которой сброс становится мягче.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-confident">L4 · CONFIDENT · 7 дней</div>
+                    <div class="step-title">Недельное удержание</div>
+                    <div class="step-desc">Прочная связь: одного касания в неделю хватает.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-confident">L5 · CONFIDENT · 14 дней</div>
+                    <div class="step-title">Две недели</div>
+                    <div class="step-desc">Слово почти перешло в активный запас.</div>
+                  </div>
+                  <div class="leitner-step-card">
+                    <div class="step-badge grp-mastered">L6 · MASTERED · 30 дней</div>
+                    <div class="step-title">Потолок</div>
+                    <div class="step-desc">Пожизненное обслуживание раз в месяц. Выше идти некуда.</div>
+                  </div>
+                </div>
+
+                <div class="guide-callout info" style="margin-top: 14px;">
+                  <strong>📈 Группы производные, они не хранятся:</strong> слово относится к группе своего <em>слабого</em> вектора —
+                  <code>min(level_en_ru, level_ru_en)</code>; банковские слова показываются как <code>BANK</code>. Поэтому шесть рядов на
+                  дашборде физически не могут разойтись с данными, и поле группы не нужно поддерживать в актуальности.
+                </div>
+                <div class="guide-callout info">
+                  <strong>🏆 Уровень 6 — это потолок, а не выход:</strong> MASTERED-слово возвращается через 30 дней и остаётся в ротации навсегда.
+                  Ничего не «увольняется» и не теряется: одна ошибка опускает только пострадавший вектор, второй идёт по своему расписанию.
+                </div>
+                <div class="guide-callout info">
+                  <strong>🎯 Сброс асимметричен:</strong> «Забыл» уводит вектор на <code>L1</code> вплоть до уровня 3 и на <code>L2</code> начиная с уровня 4 —
+                  чем глубже след, тем мягче падение. «Сложно» на L0 оставляет слово доступным сегодня (<code>INTERVALS[0] = 0</code>);
+                  текущая сессия этот повтор уже не покажет, зато новое нажатие «Practice» в тот же день слово отдаст — так и задумано.
+                </div>
+              </div>
+            </div>
+
+            <!-- SECTION 2: ЗАНЕСЕНИЕ СЛОВ И ПРОМПТ -->
+            <div class="section-card guide-card" id="guide-import">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🤖</span>
+                <div>
+                  <h3>2. Занесение слов и промпт для нейросетей</h3>
+                  <p class="subtitle">Готовые карточки из Gemini / ChatGPT / Claude без ручного набора</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <p>Не нужно вручную вбивать транскрипции, переводы и примеры. Отправьте список слов любой модели вместе с этим промптом. Промпт описывает только <em>содержание</em> карточки — расписание решает приложение, а не модель.</p>
+
+                <div class="guide-prompt-container">
+                  <div class="guide-prompt-header">
+                    <span>📋 Готовый системный промпт для нейросети</span>
+                    <button class="btn btn-sm btn-primary" id="btn-guide-copy-prompt-ru">Копировать промпт</button>
+                  </div>
+                  <pre class="guide-code-box"><code id="guide-prompt-code-ru">Я буду отправлять тебе английские слова или списки слов. 
 Составь для каждого слова JSON-объект со следующими обязательными полями:
 - "word": английское слово
 - "phonetic": транскрипция в квадратных скобках (например, "[ˈɪnfluəns]")
@@ -573,189 +1000,211 @@
 - "example_translation": естественный перевод этого примера на русский язык
 
 Возвращай ТОЛЬКО чистый валидный JSON-массив [ { ... } ] без лишнего вступительного текста и markdown-оберток.</code></pre>
-              </div>
-
-              <h4 style="margin-top: 18px; margin-bottom: 8px;">Пошаговый процесс добавления:</h4>
-              <ol class="guide-steps-list">
-                <li>Скопируйте промпт выше и отправьте его боту (например, Gemini или ChatGPT).</li>
-                <li>Отправьте боту список английских слов, которые хотите выучить.</li>
-                <li>Скопируйте полученный от нейросети JSON.</li>
-                <li>В приложении откройте вкладку <strong>➕ Add Words</strong>.</li>
-                <li>Вставьте JSON в поле и нажмите кнопку <strong>«⚡ Parse & Import Words»</strong>.</li>
-                <li>Слова автоматически распределятся по партиям импорта, получат части речи и попадут в <strong>Bank (Box 0)</strong>!</li>
-              </ol>
-            </div>
-          </div>
-
-          <!-- SECTION 3: STORAGE, TRANSPORT & BACKUPS -->
-          <div class="section-card guide-card" id="guide-storage">
-            <div class="guide-card-header">
-              <span class="guide-icon-bubble">☁️</span>
-              <div>
-                <h3>3. Хранение данных, перенос и резервные копии</h3>
-                <p class="subtitle">Где лежат данные, как работает синхронизация с облаком и перенос на другой компьютер</p>
-              </div>
-            </div>
-
-            <div class="guide-body-text">
-              <div class="guide-grid-2col">
-                <div class="guide-info-block">
-                  <h4>📁 Где хранятся данные?</h4>
-                  <p>
-                    Все карточки, история, статистика и деление на партии хранятся прямо в файле <code>data/leitner_data.json</code> внутри папки проекта, а также дублируются в быстром локальном хранилище.
-                  </p>
                 </div>
 
-                <div class="guide-info-block">
-                  <h4>☁️ Облако и GitHub</h4>
-                  <p>
-                    Когда вы загружаете проект на <strong>GitHub</strong>, весь ваш прогресс, добавленные слова и группы фиксируются в репозитории. Данные никуда не исчезнут даже при переустановке системы.
-                  </p>
-                </div>
-
-                <div class="guide-info-block">
-                  <h4>💻 Перенос на другой компьютер</h4>
-                  <p>
-                    Если вы перенесёте папку с проектом на другой компьютер или сделаете <code>git clone</code>, <strong>деление на группы и даты добавления не пропадут</strong>! Каждое слово хранит свой уникальный timestamp и дату <code>created_at</code>.
-                  </p>
-                </div>
-
-                <div class="guide-info-block">
-                  <h4>💾 Ручные резервные копии (Safety Backup)</h4>
-                  <p>
-                    В левой панели всегда доступны кнопки <strong>«Save Backup (JSON)»</strong> (скачать файл базы на диск) и <strong>«Restore Backup»</strong> (мгновенно восстановить всю базу из сохранённого JSON-файла).
-                  </p>
+                <h4 style="margin-top: 18px; margin-bottom: 8px;">Пошаговый процесс занесения:</h4>
+                <ol class="guide-steps-list">
+                  <li>Скопируйте промпт выше и отправьте его боту (Gemini, ChatGPT, Claude).</li>
+                  <li>Отправьте список английских слов, которые хотите выучить.</li>
+                  <li>Скопируйте полученный от модели JSON.</li>
+                  <li>В приложении откройте экран <strong>➕ Add Words</strong>.</li>
+                  <li>Вставьте JSON и нажмите <strong>«🚀 Import Cards Now»</strong>.</li>
+                  <li>Слова получат части речи, соберутся в партию импорта и лягут в <strong>Банк</strong> — пока просто хранятся, ничего не запланировано.</li>
+                  <li>Когда будете готовы, запустите <strong>🏦 Learn New Words</strong>: первый ответ по слову активирует его и введёт оба вектора в расписание.</li>
+                </ol>
+                <div class="guide-callout info">
+                  <strong>ℹ️ Алиасы полей понятны движку:</strong> <code>transcription</code>/<code>phonetic</code> и
+                  <code>partOfSpeech</code>/<code>part_of_speech</code> читаются взаимозаменяемо, а часть речи может прийти массивом —
+                  для отображения он склеивается через <code> / </code>.
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- SECTION 4: TRAINING MODES -->
-          <div class="section-card guide-card" id="guide-modes">
-            <div class="guide-card-header">
-              <span class="guide-icon-bubble">🎯</span>
-              <div>
-                <h3>4. Режимы обучения и их предназначение</h3>
-                <p class="subtitle">Как правильно тренироваться для максимального результата</p>
+            <!-- SECTION 3: ХРАНЕНИЕ -->
+            <div class="section-card guide-card" id="guide-storage">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">☁️</span>
+                <div>
+                  <h3>3. Хранение данных, перенос и резервные копии</h3>
+                  <p class="subtitle">Хранение без сервера, автоматический снимок перед миграцией и schema_version 2</p>
+                </div>
               </div>
-            </div>
-
-            <div class="guide-body-text">
-              <div class="modes-guide-list">
-                <div class="mode-guide-item">
-                  <div class="mode-icon-tag hero-practice">🚀 Practice (Review)</div>
-                  <div>
-                    <strong>Основной режим интервального повторения.</strong>
-                    <p>Собирает из Box 1–5 только те карточки, у которых <em>наступил срок ревью на сегодня</em>. Занимайтесь в этом режиме каждый день для идеального запоминания.</p>
+              <div class="guide-body-text">
+                <div class="guide-grid-2col">
+                  <div class="guide-info-block">
+                    <h4>⚡ Полностью офлайн</h4>
+                    <p>Серверы и аккаунты не нужны. Всё живёт в папке проекта: открыли <code>index.html</code> — и приложение работает даже без интернета.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>📁 Где лежат данные</h4>
+                    <p>Карточки, история и партии пишутся в <code>data/leitner_data.json</code>, зеркалируются в <code>data/leitner_data.js</code> (чтобы страница стартовала прямо с диска) и кэшируются в браузере <code>localStorage</code> как быстрая локальная копия.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🛟 Автоматический снимок</h4>
+                    <p>Перед самым первым сохранением, которое преобразует старую базу, прежняя версия копируется в <code>data/leitner_data.pre-srs.json</code> (плюс ключ <code>localStorage</code> <code>leitner_data_pre_srs_backup</code>) — один раз и никогда поверх существующего.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>💾 Ручные резервные копии</h4>
+                    <p>В разделе <strong>Data &amp; Backup</strong> (левое меню) доступны <strong>«Save Backup (JSON)»</strong> и <strong>«Restore Backup»</strong>. Свежий дамп несёт <code>schema_version: 2</code>, поэтому приложение сразу знает, какой формат ему принесли.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>♻️ Восстановление старого бэкапа</h4>
+                    <p>Файл старше версии 2 <strong>мигрируется автоматически</strong> при загрузке: расписание пересобирается из старой записи, счётчики вроде <code>fail_count</code> сохраняются, мёртвые поля удаляются при первом сохранении. Процесс идемпотентен — второй проход ничего не меняет.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>🚫 Предупреждение о совместимости</h4>
+                    <p>Бэкап с <code>schema_version: 2</code> <strong>не читается старой версией приложения</strong>. Держите автоматический снимок или обновите все копии программы заранее, прежде чем восстанавливать такой файл.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>☁️ GitHub</h4>
+                    <p>Пуш проекта в <strong>GitHub</strong> коммитит весь прогресс, слова и партии — при переустановке системы ничего не пропадёт.</p>
+                  </div>
+                  <div class="guide-info-block">
+                    <h4>💻 Перенос на другой компьютер</h4>
+                    <p>Скопируйте папку или сделайте <code>git clone</code>: <strong>партии и даты добавления выживают</strong>, ведь каждое слово хранит свой <code>created_at</code>. Даты сравниваются по локальному календарному дню, поэтому полночь и часовые пояса не сдвигают очередь.</p>
                   </div>
                 </div>
-
-                <div class="mode-guide-item">
-                  <div class="mode-icon-tag hero-learn">🏦 Learn New Words</div>
-                  <div>
-                    <strong>Режим первого знакомства со словами из Банка (Box 0).</strong>
-                    <p>Карточки показываются в направлении ENG ➔ RUS. При нажатии «Помню» слово официально переходит в <strong>Box 1</strong> и включается в интервальное расписание.</p>
-                  </div>
-                </div>
-
-                <div class="mode-guide-item">
-                  <div class="mode-icon-tag">📁 Groups & Packs (Партии и Темы)</div>
-                  <div>
-                    <strong>Целевая тренировка отдельных наборов.</strong>
-                    <p>Позволяет учить слова по партиям импорта (например, слова за конкретный день), по частям речи (только глаголы или существительные) или по кастомным созданным вами группам.</p>
-                  </div>
-                </div>
-
-                <div class="mode-guide-item">
-                  <div class="mode-icon-tag">🔀 Direction Switcher (Направление)</div>
-                  <div>
-                    <strong>Переключатель языка в правом верхнем углу тренировки:</strong>
-                    <ul style="margin-top: 6px; padding-left: 20px; font-size: 13px; color: var(--text-muted);">
-                      <li><code>🔀 Auto</code> — умный баланс 50/50, отдающий приоритет непройденной стороне.</li>
-                      <li><code>🇬🇧 ENG→RUS</code> — тренировка восприятия английского языка (чтение и слух).</li>
-                      <li><code>🇷🇺 RUS→ENG</code> — тренировка активного воспоминания и перевода на английский.</li>
-                    </ul>
-                  </div>
+                <div class="guide-callout info">
+                  <strong>🛡️ Защита от потери данных:</strong> сохранение отклоняется, если после записи карточек стало меньше, чем было,
+                  или если у ACTIVE-слова не разбирается дата повторения. Так слова не могут исчезнуть при сохранении.
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- SECTION 5: HOTKEYS CHEATSHEET -->
-          <div class="section-card guide-card" id="guide-hotkeys">
-            <div class="guide-card-header">
-              <span class="guide-icon-bubble">⌨️</span>
-              <div>
-                <h3>5. Горячие клавиши (Cheatsheet)</h3>
-                <p class="subtitle">Управляйте тренировкой со скоростью мысли без мышки</p>
+            <!-- SECTION 4: РЕЖИМЫ -->
+            <div class="section-card guide-card" id="guide-modes">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">🎯</span>
+                <div>
+                  <h3>4. Режимы обучения</h3>
+                  <p class="subtitle">Что каждый режим берёт и что делает с расписанием</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <div class="modes-guide-list">
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag hero-practice">🚀 Practice (Повторение)</div>
+                    <div>
+                      <strong>Умная очередь долгов на сегодня.</strong>
+                      <p>Собирает <em>все</em> просроченные направления всех ACTIVE слов — слово с двумя просроченными сторонами даёт сразу две записи. Сначала самые слабые уровни, затем те, кто дольше в долге, дальше детерминированное перемешивание по ситу; анти-соседство не даёт двум сторонам одного слова идти подряд. MASTERED-поддержка едет в конец. Лимита нет: длинная сессия просто обрывается там, где вы остановитесь.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag hero-learn">🏦 Learn New Words</div>
+                    <div>
+                      <strong>Первое знакомство с Банком.</strong>
+                      <p>Каждое банковское слово даёт две записи — ENG➔RUS и RUS➔ENG, перемешанные так, чтобы стороны одного слова не шли соседями, и обе обслуживаются внутри одной сессии. Первый ответ (любой из трёх) активирует слово и оценивает показанную сторону; второй проход оценивает независимый второй вектор.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">✍️ Spelling Studio</div>
+                    <div>
+                      <strong>Диктант, печать и работа на слух.</strong>
+                      <p>Побуквенный аудио-диктант, набор слова со звука или с перевода и слушательный тест с разбором ошибок по буквам. Тренирует орфографию и фонематический слух — ответы в диктантах не двигают два вектора прогресса.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">📁 Groups & Packs</div>
+                    <div>
+                      <strong>Прицельная тренировка набора.</strong>
+                      <p>Учите слова партией импорта (слова конкретного дня), по части речи (только глаголы или только существительные) или по собственной созданной группе. Групповой прогон использует те же векторы и те же интервалы — он лишь сужает выдачу.</p>
+                    </div>
+                  </div>
+                  <div class="mode-guide-item">
+                    <div class="mode-icon-tag">🔀 Direction filter</div>
+                    <div>
+                      <strong>Переключатель в правом верхнем углу тренировки — только фильтр выдачи, на прогрессию не влияет.</strong>
+                      <ul style="margin-top: 6px; padding-left: 20px; font-size: 13px; color: var(--text-muted);">
+                        <li><code>🔀 Auto</code> — отдавать очередь как построена, оба вектора в одном потоке.</li>
+                        <li><code>🇬🇧 ENG→RUS</code> — показывать из очереди только записи узнавания.</li>
+                        <li><code>🇷🇺 RUS→ENG</code> — показывать только записи воспроизведения.</li>
+                      </ul>
+                      <p>Уровни и даты продвигаются одинаково при любой позиции переключателя.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="guide-callout info">
+                  <strong>🧠 Рекомендуемый ритм:</strong> один раз пройти <em>Learn</em> по горстке слов, дальше жить в <em>Practice</em> каждый день.
+                  «Сложно» засчитывается как верный ответ с усилием, поэтому зелёная серия не требует идеальной скорости.
+                </div>
               </div>
             </div>
 
-            <div class="guide-body-text">
-              <table class="data-table guide-hotkeys-table">
-                <thead>
-                  <tr>
-                    <th>Клавиша</th>
-                    <th>Действие</th>
-                    <th>Описание</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><kbd class="guide-kbd">Enter</kbd></td>
-                    <td>🔊 <strong>Озвучить слово</strong></td>
-                    <td>Произносит текущее английское слово с естественным акцентом</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd> <span class="badge-mini">(1-й раз)</span></td>
-                    <td>💡 <strong>Показать подсказку</strong></td>
-                    <td>Открывает предложение-пример с контекстом употребления</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd> <span class="badge-mini">(2-й раз)</span></td>
-                    <td>🔊 <strong>Озвучить подсказку</strong></td>
-                    <td>Произносит всё предложение-пример целиком</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">Space</kbd> / <kbd class="guide-kbd">S</kbd> / <kbd class="guide-kbd">Ы</kbd></td>
-                    <td>🔄 <strong>Перевернуть карточку</strong></td>
-                    <td>Переворачивает карточку между лицевой и обратной стороной</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">→</kbd> / <kbd class="guide-kbd">D</kbd> / <kbd class="guide-kbd">В</kbd></td>
-                    <td>🟢 <strong>Помню (Remembered)</strong></td>
-                    <td>Ответ верен — продвигает карточку вперед по интервалу</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">←</kbd> / <kbd class="guide-kbd">A</kbd> / <kbd class="guide-kbd">Ф</kbd></td>
-                    <td>🔴 <strong>Не помню (Forgot)</strong></td>
-                    <td>Ошибка — сбрасывает карточку в Box 1 для повторения завтра</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">↓</kbd> (Стрелка Вниз)</td>
-                    <td>↩ <strong>Отмена (Undo)</strong></td>
-                    <td>Возвращает предыдущую карточку и восстанавливает её состояние</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">↑</kbd> (Стрелка Вверх) / <kbd class="guide-kbd">W</kbd></td>
-                    <td>⏭️ <strong>В конец очереди</strong></td>
-                    <td>Откладывает текущую карточку на самый конец тренировочной сессии</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">0</kbd> – <kbd class="guide-kbd">5</kbd></td>
-                    <td>📦 <strong>Переместить в Box N</strong></td>
-                    <td>Вручную отправляет карточку в выбранную коробку от 0 до 5</td>
-                  </tr>
-                  <tr>
-                    <td><kbd class="guide-kbd">Escape</kbd></td>
-                    <td>🚪 <strong>Выход / Назад</strong></td>
-                    <td>Закрывает открытые модальные окна или возвращает в Dashboard</td>
-                  </tr>
-                </tbody>
-              </table>
+            <!-- SECTION 5: ГОРЯЧИЕ КЛАВИШИ -->
+            <div class="section-card guide-card" id="guide-hotkeys">
+              <div class="guide-card-header">
+                <span class="guide-icon-bubble">⌨️</span>
+                <div>
+                  <h3>5. Горячие клавиши (Cheatsheet)</h3>
+                  <p class="subtitle">Управляйте тренировкой со скоростью мысли, без мышки</p>
+                </div>
+              </div>
+              <div class="guide-body-text">
+                <table class="data-table guide-hotkeys-table">
+                  <thead>
+                    <tr>
+                      <th>Клавиша</th>
+                      <th>Действие</th>
+                      <th>Описание</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><kbd class="guide-kbd">Space</kbd> / <kbd class="guide-kbd">S</kbd> / <kbd class="guide-kbd">Ы</kbd></td>
+                      <td>🔄 <strong>Перевернуть карточку</strong></td>
+                      <td>Переключает лицевую и обратную стороны карточки</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">Enter</kbd></td>
+                      <td>🔊 <strong>Озвучить слово</strong></td>
+                      <td>Произносит текущее английское слово естественным голосом</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd></td>
+                      <td>💡 <strong>Подсказка → 🔊 пример</strong></td>
+                      <td>Первое нажатие открывает пример предложения, следующее озвучивает его целиком</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">1</kbd> / <kbd class="guide-kbd">←</kbd> / <kbd class="guide-kbd">A</kbd> / <kbd class="guide-kbd">Ф</kbd></td>
+                      <td>🔴 <strong>Забыл</strong></td>
+                      <td>Сбрасывает отвеченный вектор: L≤3 → L1, L≥4 → L2. Засчитывается как ошибка</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">2</kbd></td>
+                      <td>🟠 <strong>Сложно</strong></td>
+                      <td>Вспомнили с усилием — уровень заморожен, интервал тот же. Считается верным ответом</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">3</kbd> / <kbd class="guide-kbd">→</kbd> / <kbd class="guide-kbd">D</kbd> / <kbd class="guide-kbd">В</kbd></td>
+                      <td>🟢 <strong>Легко</strong></td>
+                      <td>Без напряжения — вектор поднимается на ступень по таблице <code>INTERVALS</code></td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">↓</kbd></td>
+                      <td>↩ <strong>Отмена (Undo)</strong></td>
+                      <td>Возвращает предыдущую карточку и восстанавливает её состояние</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">↑</kbd> / <kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td>
+                      <td>⏭️ <strong>В конец очереди</strong></td>
+                      <td>Откладывает текущую запись на самый конец сессии</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">Escape</kbd></td>
+                      <td>🚪 <strong>Назад / Выход</strong></td>
+                      <td>Закрывает открытую модалку; на тренировке возвращает на экран, откуда начали; с любого другого экрана (даже при наборе текста) — на Dashboard</td>
+                    </tr>
+                    <tr>
+                      <td><kbd class="guide-kbd">0</kbd></td>
+                      <td>🏦 <strong>Вернуть в Bank</strong></td>
+                      <td>Текущая карточка возвращается в Bank (выходит из ротации). Отмена — клавишей <kbd class="guide-kbd">↓</kbd>. Цифры <kbd class="guide-kbd">1</kbd>–<kbd class="guide-kbd">5</kbd> больше ничего не делают: ручной перенос убран, расписанием владеет алгоритм</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
 
+          </div>
         </div>
       </section>
 
@@ -764,21 +1213,24 @@
         <header class="page-header">
           <div>
             <h1>📁 Word Groups & Collections</h1>
-            <p class="subtitle">Organized automatically by import batches and parts of speech</p>
+            <p class="subtitle">Batches, parts of speech and your own manual groups</p>
           </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
         </header>
 
         <!-- Sub-tabs for Groups Screen -->
         <div class="groups-filter-header margin-top">
           <div class="tab-controls">
             <button class="groups-tab-btn active" data-groups-tab="batches">
-              📦 Import Sessions (Партии)
+              📦 Import Sessions
             </button>
             <button class="groups-tab-btn" data-groups-tab="pos">
-              🏷️ Parts of Speech (Части речи)
+              🏷️ Parts of Speech
             </button>
             <button class="groups-tab-btn" data-groups-tab="custom">
-              🖐️ Manual Groups (Ручные группы)
+              🖐️ Manual Groups
             </button>
           </div>
         </div>
@@ -811,14 +1263,611 @@
         </div>
       </section>
 
+      <!-- SCREEN 6: SPELLING & DICTATION STUDIO -->
+      <section id="screen-spelling" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>✍️ Spelling & Dictation Studio</h1>
+            <p class="subtitle">Audio dictation, typing test and listening drills</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
+        </header>
+
+        <!-- Mode tabs -->
+        <div class="spelling-mode-tabs margin-top" role="tablist" aria-label="Spelling practice modes">
+          <button class="spelling-tab-btn active" id="spelling-tab-dictation" role="tab" aria-selected="true">🎧 Dictation</button>
+          <button class="spelling-tab-btn" id="spelling-tab-typing" role="tab" aria-selected="false">⌨️ Typing Test</button>
+          <button class="spelling-tab-btn" id="spelling-tab-listening" role="tab" aria-selected="false">👂 Listening Test</button>
+        </div>
+
+        <!-- ============ VIEW 1: DICTATION ============ -->
+        <div id="spelling-view-dictation" role="tabpanel" aria-label="Dictation practice" class="spelling-mode-view">
+          <div class="spelling-studio-layout">
+
+            <!-- LEFT COLUMN: source & settings -->
+            <div class="section-card spelling-card">
+              <div class="spelling-card-header">
+                <h3>📥 Word List</h3>
+                <span class="spelling-count-tag" id="spelling-word-count-badge">0 words</span>
+              </div>
+
+              <div class="spelling-presets-bar">
+                <span class="presets-label">Quick presets:</span>
+                <div class="presets-chips">
+                  <button class="chip-btn" id="btn-spelling-preset-sample" title="Load sample words">✨ Sample</button>
+                  <button class="chip-btn grp-learning" id="btn-spelling-preset-box1" title="All words from the LEARNING group">🧠 Learning</button>
+                  <button class="chip-btn grp-bank" id="btn-spelling-preset-bank" title="Words from the Bank">🏦 Word Bank</button>
+                  <button class="chip-btn" id="btn-spelling-preset-random" title="Random 10 words">🎲 Random</button>
+                  <button class="chip-btn chip-btn-danger" id="btn-spelling-clear" title="Clear the list">🗑️ Clear</button>
+                </div>
+              </div>
+
+              <label class="presets-label" for="spelling-input-text">Words (one per line):</label>
+              <textarea id="spelling-input-text" rows="6" spellcheck="false" placeholder="cat&#10;reluctant&#10;beautiful"></textarea>
+              <button class="btn btn-primary btn-block margin-top" id="btn-spelling-apply-words">
+                📥 Update Dictation List
+              </button>
+
+              <div class="spelling-settings-grid margin-top">
+                <div class="setting-item">
+                  <div class="setting-header">
+                    <label for="spelling-letter-delay">Delay between letters</label>
+                    <span class="setting-val" id="val-letter-delay">0.9 s</span>
+                  </div>
+                  <input type="range" class="range-slider" id="spelling-letter-delay" min="0" max="3" step="0.1" value="0.9">
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-header">
+                    <label for="spelling-word-delay">Delay between words</label>
+                    <span class="setting-val" id="val-word-delay">2.5 s</span>
+                  </div>
+                  <input type="range" class="range-slider" id="spelling-word-delay" min="0" max="8" step="0.1" value="2.5">
+                </div>
+
+                <div class="setting-item">
+                  <div class="setting-header">
+                    <label for="spelling-speech-rate">Speech rate</label>
+                    <span class="setting-val" id="val-speech-rate">0.88x</span>
+                  </div>
+                  <input type="range" class="range-slider" id="spelling-speech-rate" min="0.5" max="1.5" step="0.01" value="0.88">
+                </div>
+
+                <div class="setting-toggles">
+                  <label class="custom-toggle-label">
+                    <input type="checkbox" id="spelling-repeat-word" checked>
+                    <span class="toggle-text">🔁 Repeat each word twice</span>
+                  </label>
+                  <label class="custom-toggle-label">
+                    <input type="checkbox" id="spelling-blind-mode">
+                    <span class="toggle-text">🙈 Blind mode (hide letters)</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT COLUMN: stage & queue -->
+            <div>
+              <div class="section-card spelling-main-stage">
+                <div class="stage-top-meta">
+                  <span class="stage-word-counter" id="spelling-counter-text">Word 0 of 0</span>
+                  <span class="badge" id="spelling-status-badge">Ready</span>
+                </div>
+
+                <div class="spelling-progress-bar-wrap">
+                  <div class="spelling-progress-bar" id="spelling-progress-bar" style="width: 0%;"></div>
+                </div>
+
+                <div class="stage-center-box">
+                  <div class="spelling-word-hero-wrap">
+                    <h1 class="spelling-word-hero" id="spelling-current-word">—</h1>
+                    <button class="btn-speak" id="btn-spelling-speak-current" title="Listen to the word" aria-label="Listen to word">🔊</button>
+                  </div>
+                  <div class="spelling-meta-row">
+                    <span class="spelling-phonetic" id="spelling-current-phonetic"></span>
+                    <span class="spelling-translation" id="spelling-current-translation"></span>
+                  </div>
+                  <div class="spelling-tiles-container" id="spelling-tiles-container">
+                    <span style="color: var(--text-dark); font-size: 14px;">Letters will appear here during dictation</span>
+                  </div>
+
+                  <div class="spelling-check-container hidden" id="spelling-check-container">
+                    <div class="spelling-check-input-row">
+                      <input type="text" id="spelling-check-input" placeholder="Type the word you hear…" autocomplete="off" spellcheck="false">
+                      <button class="btn btn-primary" id="btn-spelling-check-submit">✔ Check</button>
+                      <button class="btn btn-secondary" id="btn-spelling-reveal">🙈 Hide</button>
+                    </div>
+                    <div class="spelling-check-feedback" id="spelling-check-feedback"></div>
+                  </div>
+                </div>
+
+                <div class="spelling-controls-bar margin-top no-flip">
+                  <button class="btn btn-secondary" id="btn-spelling-prev" title="Previous word">⏮</button>
+                  <button class="btn btn-primary" id="btn-spelling-play-pause" title="Start / pause dictation">
+                    <span id="spelling-play-icon">▶️</span>
+                    <span>
+                      <b id="spelling-play-title">Start Dictation</b><br>
+                      <small id="spelling-play-sub">Word & Letter-by-letter</small>
+                    </span>
+                  </button>
+                  <button class="btn btn-secondary" id="btn-spelling-next" title="Next word">⏭</button>
+                  <button class="btn btn-secondary" id="btn-spelling-repeat" title="Repeat the current word">🔁</button>
+                  <button class="btn btn-secondary" id="btn-spelling-stop" title="Stop dictation">⏹</button>
+                </div>
+              </div>
+
+              <div class="section-card spelling-queue-card margin-top">
+                <div class="queue-header">
+                  <h4>📋 Dictation Queue</h4>
+                  <span class="queue-info">Click a row to jump to that word</span>
+                </div>
+                <div class="spelling-queue-list-wrapper">
+                  <div class="spelling-queue-list" id="spelling-queue-items">
+                    <!-- Dynamically populated -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ============ VIEW 2: TYPING TEST ============ -->
+        <div id="spelling-view-typing" role="tabpanel" aria-label="Typing test" class="spelling-mode-view typing-stage-view hidden">
+          <div class="section-card spelling-card">
+            <div class="spelling-card-header">
+              <h3>⌨️ Typing Test</h3>
+              <span class="spelling-count-tag" id="typing-word-count-badge">0 words</span>
+            </div>
+
+            <div class="spelling-presets-bar">
+              <span class="presets-label">Word source:</span>
+              <div class="presets-chips">
+                <button class="typing-source-btn chip-btn active" data-source="all">📚 All Words</button>
+                <button class="typing-source-btn chip-btn grp-bank" data-source="bank">🏦 Word Bank</button>
+                <button class="typing-source-btn chip-btn grp-new" data-source="new">✨ New</button>
+                <button class="typing-source-btn chip-btn grp-learning" data-source="learning">🧠 Learning</button>
+                <button class="typing-source-btn chip-btn grp-familiar" data-source="familiar">📘 Familiar</button>
+                <button class="typing-source-btn chip-btn grp-confident" data-source="confident">🎯 Confident</button>
+                <button class="typing-source-btn chip-btn grp-mastered" data-source="mastered">🏆 Mastered</button>
+                <button class="typing-source-btn chip-btn" data-source="random">🎲 Random 10</button>
+              </div>
+              <select id="typing-group-select" class="filter-select margin-top">
+                <option value="">-- Select Group --</option>
+              </select>
+            </div>
+
+            <div class="spelling-presets-bar margin-top">
+              <span class="presets-label">Sub-mode:</span>
+              <div class="presets-chips">
+                <button class="typing-submode-btn chip-btn active" id="btn-typing-submode-audio">🔊 By Audio</button>
+                <button class="typing-submode-btn chip-btn" id="btn-typing-submode-trans">🇷🇺 By Translation</button>
+              </div>
+            </div>
+
+            <!-- Stage: idle -->
+            <div id="typing-stage-inactive" class="stage-center-box margin-top">
+              <p class="subtitle">Choose a word source and a sub-mode, then start the test.</p>
+              <button class="btn btn-primary btn-lg" id="btn-typing-start-quiz">🚀 Start Typing Test</button>
+            </div>
+
+            <!-- Stage: active -->
+            <div id="typing-stage-active" class="spelling-main-stage hidden">
+              <div class="stage-top-meta">
+                <span class="stage-word-counter" id="typing-quiz-counter">Word 1 of 1</span>
+                <span class="badge" id="typing-score-badge">✅ 0</span>
+              </div>
+              <div class="spelling-progress-bar-wrap">
+                <div class="spelling-progress-bar" id="typing-quiz-progress-bar" style="width: 0%;"></div>
+              </div>
+
+              <div class="stage-center-box">
+                <div class="typing-prompt-view" id="typing-prompt-audio-view">
+                  <p class="subtitle">🔊 Listen to the word and type it:</p>
+                  <button class="btn btn-secondary" id="btn-typing-play-audio">🔊 Replay Audio (Space)</button>
+                </div>
+                <div class="typing-prompt-view hidden" id="typing-prompt-trans-view">
+                  <p class="subtitle">🇷🇺 Translation — type the English word:</p>
+                  <h1 class="spelling-word-hero" id="typing-prompt-trans-text">—</h1>
+                </div>
+
+                <input type="text" id="typing-input" class="typing-main-input" placeholder="Type the word…" autocomplete="off" autocapitalize="off" spellcheck="false">
+                <div class="spelling-check-feedback" id="typing-feedback-box"></div>
+
+                <div class="spelling-controls-bar no-flip">
+                  <button class="btn btn-primary" id="btn-typing-check-ans">✔ Check (Enter)</button>
+                  <button class="btn btn-secondary" id="btn-typing-hint">💡 Hint</button>
+                  <button class="btn btn-secondary" id="btn-typing-skip">⏭ Skip</button>
+                  <button class="btn btn-secondary" id="btn-typing-restart-quiz">🔄 Restart</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage: results -->
+            <div id="typing-stage-results" class="stage-center-box hidden">
+              <div class="stage-top-meta">
+                <h3>🏁 Typing Test Results</h3>
+                <span class="badge" id="typing-accuracy-badge">0%</span>
+              </div>
+              <div class="stats-overview-grid margin-top">
+                <div class="stat-summary-card">
+                  <h4>✅ Correct</h4>
+                  <div class="stat-big-num green-text" id="res-typing-correct">0</div>
+                </div>
+                <div class="stat-summary-card">
+                  <h4>❌ Mistakes</h4>
+                  <div class="stat-big-num" id="res-typing-wrong">0</div>
+                </div>
+                <div class="stat-summary-card">
+                  <h4>⏭ Skipped</h4>
+                  <div class="stat-big-num gold-text" id="res-typing-skipped">0</div>
+                </div>
+              </div>
+              <div id="typing-mistakes-list" class="margin-top" style="display:flex; flex-direction:column; gap:4px; width:100%;"></div>
+              <button class="btn btn-primary margin-top" id="btn-typing-restart-quiz-again" onclick="document.getElementById('btn-typing-restart-quiz').click()">🔄 Run Again</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ VIEW 3: LISTENING TEST ============ -->
+        <div id="spelling-view-listening" role="tabpanel" aria-label="Listening test" class="spelling-mode-view listen-stage-view hidden">
+          <div class="section-card spelling-card">
+            <div class="spelling-card-header">
+              <h3>👂 Listening Test</h3>
+              <span class="spelling-count-tag" id="listen-word-count-badge">0 words</span>
+            </div>
+
+            <div class="spelling-presets-bar">
+              <span class="presets-label">Word source:</span>
+              <div class="presets-chips">
+                <button class="listen-source-btn chip-btn active" data-source="all">📚 All Words</button>
+                <button class="listen-source-btn chip-btn" data-source="dictation">✍️ Dictation List</button>
+                <button class="listen-source-btn chip-btn grp-bank" data-source="bank">🏦 Word Bank</button>
+                <button class="listen-source-btn chip-btn grp-new" data-source="new">✨ New</button>
+                <button class="listen-source-btn chip-btn grp-learning" data-source="learning">🧠 Learning</button>
+                <button class="listen-source-btn chip-btn grp-familiar" data-source="familiar">📘 Familiar</button>
+                <button class="listen-source-btn chip-btn" data-source="random">🎲 Random 10</button>
+              </div>
+              <select id="listen-group-select" class="filter-select margin-top">
+                <option value="">-- Select Group --</option>
+              </select>
+            </div>
+
+            <div class="spelling-settings-grid margin-top">
+              <div class="setting-item">
+                <div class="setting-header">
+                  <label>Error display type</label>
+                </div>
+                <div class="presets-chips">
+                  <button class="typing-submode-btn chip-btn active" id="btn-listen-err-letters">🔤 By Letter</button>
+                  <button class="typing-submode-btn chip-btn" id="btn-listen-err-whole">🅿️ Whole Word</button>
+                </div>
+              </div>
+
+              <div class="setting-item">
+                <div class="setting-header">
+                  <label for="listen-max-attempts">Max attempts</label>
+                  <span class="setting-val" id="listen-attempts-val">3</span>
+                </div>
+                <input type="range" class="range-slider" id="listen-max-attempts" min="1" max="5" step="1" value="3">
+              </div>
+
+              <div class="setting-toggles">
+                <label class="custom-toggle-label">
+                  <input type="checkbox" id="listen-auto-next" checked>
+                  <span class="toggle-text">⏩ Auto-advance to the next word</span>
+                </label>
+                <label class="custom-toggle-label">
+                  <input type="checkbox" id="listen-show-translation">
+                  <span class="toggle-text">🇷🇺 Always show the translation</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Stage: idle -->
+            <div id="listen-stage-idle" class="stage-center-box margin-top">
+              <p class="subtitle">Listen to the word, type it and analyse mistakes letter by letter.</p>
+              <p class="spelling-translation">Shift — replay audio · Ctrl+Shift — example sentence</p>
+              <button class="btn btn-primary btn-lg" id="btn-listen-start">🚀 Start Listening Test</button>
+            </div>
+
+            <!-- Stage: active -->
+            <div id="listen-stage-active" class="spelling-main-stage hidden">
+              <div class="stage-top-meta">
+                <span class="stage-word-counter" id="listen-counter">Word 1 of 1</span>
+                <span class="badge">✅ <b id="listen-score-correct">0</b> · ❌ <b id="listen-score-wrong">0</b></span>
+              </div>
+              <div class="spelling-progress-bar-wrap">
+                <div class="spelling-progress-bar" id="listen-progress-bar" style="width: 0%;"></div>
+              </div>
+
+              <div class="stage-center-box">
+                <div class="spelling-meta-row">
+                  <span class="badge" id="listen-attempt-indicator">Attempt 1 of 3</span>
+                  <button class="btn btn-secondary" id="btn-listen-replay">🔊 Replay (Shift)</button>
+                  <button class="btn btn-secondary" id="btn-listen-example">💬 Example (Ctrl+Shift)</button>
+                </div>
+
+                <p class="spelling-translation" id="listen-translation-hint" style="display:none;"></p>
+
+                <div class="spelling-check-input-row" style="width:100%;">
+                  <input type="text" id="listen-input" placeholder="What did you hear?" autocomplete="off" autocapitalize="off" spellcheck="false">
+                  <button class="btn btn-primary" id="btn-listen-submit">✔ Submit (Enter)</button>
+                </div>
+
+                <div class="spelling-tiles-container" id="listen-letter-compare"></div>
+                <div class="spelling-check-feedback" id="listen-feedback"></div>
+
+                <div class="spelling-controls-bar no-flip">
+                  <button class="btn btn-secondary" id="btn-listen-hint">💡 Hint</button>
+                  <button class="btn btn-secondary" id="btn-listen-reveal">👁️ Reveal</button>
+                  <button class="btn btn-secondary" id="btn-listen-skip">⏭ Skip</button>
+                  <button class="btn btn-secondary" id="btn-listen-restart">🔄 Restart</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Stage: results -->
+            <div id="listen-stage-results" class="stage-center-box hidden">
+              <div class="stage-top-meta">
+                <h3>🏁 Listening Test Results</h3>
+                <span class="badge" id="listen-accuracy-badge">0%</span>
+              </div>
+              <div class="stats-overview-grid margin-top">
+                <div class="stat-summary-card">
+                  <h4>✅ Correct</h4>
+                  <div class="stat-big-num green-text" id="listen-res-correct">0</div>
+                </div>
+                <div class="stat-summary-card">
+                  <h4>❌ Mistakes</h4>
+                  <div class="stat-big-num" id="listen-res-wrong">0</div>
+                </div>
+                <div class="stat-summary-card">
+                  <h4>⏭ Skipped</h4>
+                  <div class="stat-big-num gold-text" id="listen-res-skipped">0</div>
+                </div>
+              </div>
+              <div id="listen-results-list" class="margin-top" style="display:flex; flex-direction:column; width:100%;"></div>
+              <button class="btn btn-primary margin-top" onclick="document.getElementById('btn-listen-start').click()">🔄 Run Again</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 6.5: DATA & BACKUP (retired from the sidebar footer box) -->
+      <section id="screen-data" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>🛡️ Data &amp; Backup</h1>
+            <p class="subtitle">Exports, restores and word-list tools — everything lives on this computer</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
+        </header>
+
+        <div class="stats-kpi-grid margin-top">
+          <div class="kpi-card">
+            <span class="kpi-icon">🗂️</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="data-stat-total">0</span>
+              <span class="kpi-label">Words in the system</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">⚡</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="data-stat-active">0</span>
+              <span class="kpi-label">In the rotation</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">🏦</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="data-stat-bank">0</span>
+              <span class="kpi-label">Sitting in the Bank</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">⏰</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="data-stat-due">0</span>
+              <span class="kpi-label">Due today</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card margin-top">
+          <h3>💾 Backup &amp; transfer</h3>
+          <p class="subtitle margin-top">A JSON dump is the whole state — cards, schedule, history, settings. Keep copies somewhere OUTSIDE this folder too.</p>
+          <div class="backup-actions-grid margin-top">
+            <div class="backup-action">
+              <button class="btn btn-primary" id="btn-backup-json">💾 Save Backup (JSON)</button>
+              <p class="subtitle">System save dialog; fresh file carries <code>schema_version: 2</code> and a <code>saved_at</code> stamp.</p>
+            </div>
+            <div class="backup-action">
+              <button class="btn btn-secondary" id="btn-restore-json">📤 Restore Backup</button>
+              <p class="subtitle">Choose any earlier dump — the app snapshots the current data before replacing it.</p>
+            </div>
+          </div>
+          <input type="file" id="input-restore-json-file" accept=".json" hidden>
+        </div>
+
+        <div class="section-card margin-top">
+          <h3>📋 Word lists</h3>
+          <p class="subtitle margin-top">Copy the vocabulary out — into notes, the Import screen or Spelling Studio.</p>
+          <div class="backup-actions-grid margin-top">
+            <div class="backup-action">
+              <button class="btn btn-secondary" id="btn-copy-english-list">📋 All English words</button>
+              <p class="subtitle">One comma-separated line — the format the Add&nbsp;Words import expects.</p>
+            </div>
+            <div class="backup-action">
+              <button class="btn btn-secondary" id="btn-copy-words-lines">📝 Words, one per line</button>
+              <p class="subtitle">Plain vertical list for notes and flashcard tools.</p>
+            </div>
+            <div class="backup-action">
+              <button class="btn btn-secondary" id="btn-copy-words-trans">🔤 Word — translation</button>
+              <p class="subtitle">Two-column paste — drop it straight into the Spelling Studio input.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card margin-top">
+          <h3>🧯 Safety net — what protects your data</h3>
+          <ul class="safety-list">
+            <li>✅ Every change is saved to <code>data/leitner_data.json</code> immediately — closing the window never loses a review.</li>
+            <li>📸 Before the very first v2 migration the old base was copied to <code>leitner_data.pre-srs.*</code> (one time, never overwritten).</li>
+            <li>♻️ Restoring a backup first snapshots the data that is currently live.</li>
+            <li>🧾 Files from <code>schema_version: 2</code> only open in this build or newer — old builds cannot read them.</li>
+          </ul>
+          <button class="btn btn-secondary margin-top" id="btn-data-open-guide">📖 Read the full “Storage &amp; Backups” chapter</button>
+        </div>
+      </section>
+
+      <!-- SCREEN 7: STATISTICS -->
+      <section id="screen-stats" class="screen">
+        <header class="page-header">
+          <div>
+            <h1>📊 Statistics &amp; Progress</h1>
+            <p class="subtitle">14-day activity, knowledge groups and the review heatmap</p>
+          </div>
+          <button class="btn btn-secondary btn-back-dash">
+            ← Back to Dashboard
+          </button>
+        </header>
+
+        <div class="stats-kpi-grid margin-top">
+          <div class="kpi-card">
+            <span class="kpi-icon">🗂️</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="stats-total-cards">0</span>
+              <span class="kpi-label">Total cards</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">⏰</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="stats-due-cards">0</span>
+              <span class="kpi-label">Due for review today</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">🏆</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="stats-mastered-cards">0</span>
+              <span class="kpi-label">MASTERED (30 days)</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">🎯</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="stats-accuracy">0%</span>
+              <span class="kpi-label">Answer accuracy</span>
+            </div>
+          </div>
+          <div class="kpi-card">
+            <span class="kpi-icon">🔥</span>
+            <div class="kpi-data">
+              <span class="kpi-value" id="stats-streak">0 days</span>
+              <span class="kpi-label">Day streak</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-grid">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>📈 14-Day Activity</h3>
+            </div>
+            <div style="position: relative; height: 260px;">
+              <canvas id="chart-activity" width="360" height="260" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">
+              <h3>🍩 Knowledge Group Distribution</h3>
+            </div>
+            <!-- #chart-stages doughnut expectation (§5.5): exactly six slices with the
+                 legend ['Bank','NEW','LEARNING','FAMILIAR','CONFIDENT','MASTERED'],
+                 one colour per bucket, counts from SRS.summarize().groups. -->
+            <div style="position: relative; height: 260px;">
+              <canvas id="chart-stages" width="360" height="260" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-direction breakdown: two independent vectors reported separately.
+             app.js fills #stats-dir-en-ru / #stats-dir-ru-en with a short line like
+             «средний L2.8 · 41 к сроку · 12 просрочено» for the en_ru / ru_en vector. -->
+        <div class="section-card stats-dir-card">
+          <div class="section-header">
+            <h3>🧭 Per-Direction Breakdown</h3>
+            <span class="info-tag">two independent vectors of one word</span>
+          </div>
+          <div class="dir-breakdown-grid">
+            <div class="dir-breakdown-card">
+              <div class="dir-breakdown-title">🇬🇧 ENG→RUS</div>
+              <div class="dir-breakdown-value" id="stats-dir-en-ru">—</div>
+              <div class="dir-breakdown-note">vector level_en_ru · next_review_en_ru</div>
+            </div>
+            <div class="dir-breakdown-card">
+              <div class="dir-breakdown-title">🇷🇺 RUS→ENG</div>
+              <div class="dir-breakdown-value" id="stats-dir-ru-en">—</div>
+              <div class="dir-breakdown-note">vector level_ru_en · next_review_ru_en</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🟩 Activity Heatmap (17 weeks)</h3>
+            <span class="info-tag">Total words in base: <b id="stat-total-added">0</b></span>
+          </div>
+          <div class="heatmap-wrapper">
+            <div class="heatmap-grid" id="heatmap-grid"></div>
+            <div class="heatmap-legend">
+              <span>Less</span>
+              <div class="h-cell level-0"></div>
+              <div class="h-cell level-1"></div>
+              <div class="h-cell level-2"></div>
+              <div class="h-cell level-3"></div>
+              <div class="h-cell level-4"></div>
+              <span>More</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🔴 Hard Words (top 10 by resets)</h3>
+          </div>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Word</th>
+                <th>Translation</th>
+                <th>Resets</th>
+                <th>Group</th>
+              </tr>
+            </thead>
+            <tbody id="stat-mistakes-body">
+              <tr><td colspan="4" style="text-align:center; color: var(--text-dark);">No data yet</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
     </main>
   </div>
 
   <!-- EDIT CARD MODAL -->
   <div id="modal-edit-card" class="modal-overlay hidden">
-    <div class="modal-content glass-card">
+    <div class="modal-content glass-card" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
       <div class="modal-header">
-        <h3>✏️ Edit Flashcard</h3>
+        <h3 id="edit-modal-title">✏️ Edit Flashcard</h3>
         <button class="btn-close-modal" id="btn-close-edit-modal">✖</button>
       </div>
       <form id="form-edit-card" class="glass-form margin-top">
@@ -847,17 +1896,46 @@
           <label for="edit-example-trans">Example Sentence Translation (RUS)</label>
           <textarea id="edit-example-trans" rows="2"></textarea>
         </div>
+        <!-- Scheduling fields (§5.6). Changing a level recomputes
+             next_review_* = TODAY + INTERVALS[level]; switching to BANK zeroes both
+             levels to 0. Labels carry the derived group and the interval in days. -->
         <div class="form-group">
-          <label for="edit-box">Box Number</label>
-          <select id="edit-box">
-            <option value="0">Box 0 (Word Bank)</option>
-            <option value="1">Box 1</option>
-            <option value="2">Box 2</option>
-            <option value="3">Box 3</option>
-            <option value="4">Box 4</option>
-            <option value="5">Box 5</option>
-            <option value="archive">🏆 Archive</option>
+          <label for="edit-status">Status</label>
+          <select id="edit-status">
+            <option value="BANK">BANK · not started yet</option>
+            <option value="ACTIVE">ACTIVE · scheduled</option>
           </select>
+        </div>
+        <div class="form-group edit-levels-row" style="display: flex; gap: 12px;">
+          <div style="flex: 1;">
+            <label for="edit-level-en-ru">Level · ENG→RUS</label>
+            <select id="edit-level-en-ru">
+              <option value="0">L0 · NEW</option>
+              <option value="1">L1 · LEARNING · 1 day</option>
+              <option value="2">L2 · FAMILIAR · 2 days</option>
+              <option value="3">L3 · FAMILIAR · 4 days</option>
+              <option value="4">L4 · CONFIDENT · 7 days</option>
+              <option value="5">L5 · CONFIDENT · 14 days</option>
+              <option value="6">L6 · MASTERED · 30 days</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label for="edit-level-ru-en">Level · RUS→ENG</label>
+            <select id="edit-level-ru-en">
+              <option value="0">L0 · NEW</option>
+              <option value="1">L1 · LEARNING · 1 day</option>
+              <option value="2">L2 · FAMILIAR · 2 days</option>
+              <option value="3">L3 · FAMILIAR · 4 days</option>
+              <option value="4">L4 · CONFIDENT · 7 days</option>
+              <option value="5">L5 · CONFIDENT · 14 days</option>
+              <option value="6">L6 · MASTERED · 30 days</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="edit-due-info">Review schedule</label>
+          <input type="text" id="edit-due-info" readonly
+                 placeholder="EN→RUS: — · RUS→ENG: —">
         </div>
         <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
           <button type="button" class="btn btn-secondary" id="btn-cancel-edit">Cancel</button>
@@ -869,7 +1947,7 @@
 
   <!-- UNIFIED GROUP DETAIL MODAL -->
   <div id="modal-group-detail" class="modal-overlay hidden">
-    <div class="modal-content glass-card" style="max-width: 860px; width: 95%;">
+    <div class="modal-content glass-card" role="dialog" aria-modal="true" aria-labelledby="gd-title" style="max-width: 860px; width: 95%;">
 
       <!-- Header: title + close -->
       <div class="modal-header">
@@ -892,7 +1970,7 @@
       </div>
 
       <!-- Inline word search panel (batch & custom only) -->
-      <div id="gd-add-panel" class="hidden" style="margin-top:14px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:14px;">
+      <div id="gd-add-panel" class="hidden" style="margin-top:14px; background:rgba(var(--overlay-rgb), 0.04); border:1px solid rgba(var(--overlay-rgb), 0.1); border-radius:12px; padding:14px;">
         <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
           <span style="font-weight:600; font-size:14px;">➕ Add word from dictionary</span>
           <button class="btn btn-secondary" id="gd-btn-toggle-search" style="padding:4px 12px; font-size:13px;">Search…</button>
@@ -914,7 +1992,7 @@
               <th>Word (ENG)</th>
               <th>Translation (RUS)</th>
               <th>Part of Speech</th>
-              <th>Box</th>
+              <th>Group</th>
               <th id="gd-actions-th">Actions</th>
             </tr>
           </thead>
@@ -937,9 +2015,13 @@
   <canvas id="confetti-canvas" class="confetti-canvas"></canvas>
 
   <!-- Toast Notification Container -->
-  <div id="toast-container" class="toast-container"></div>
+  <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
 
   <script src="data/leitner_data.js"></script>
+  <script src="srs.js"></script>
   <script src="app.js"></script>
+  <script src="theme.js"></script>
+  <script src="polish.js"></script>
+  <script src="datacare.js"></script>
 </body>
 </html>

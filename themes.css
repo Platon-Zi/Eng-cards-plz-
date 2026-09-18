@@ -1,0 +1,405 @@
+/* ==========================================================================
+   THEMES.CSS — colour-theme token scopes (loaded AFTER style.css).
+   --------------------------------------------------------------------------
+   Contract:
+   • Every custom property referenced anywhere in style.css / themes.css is
+     (re)defined in ALL FOUR html[data-theme=…] scopes below, so no theme can
+     silently render with an undefined var(). :root in style.css carries the
+     same values as the beta scope (fallback when data-theme is absent).
+   • html[data-theme="beta"]      — the ORIGINAL vivid palette, pixel-identical
+     to the pre-theming look. Default + safe fallback. DO NOT RESTYLE.
+   • html[data-theme="midnight"]  — "Arctic": polar glacier dark. Near-black
+     teal-blue surfaces, glacial text, cyan/aqua/azure accents with ice-rose
+     and gold for danger/warning; dark ink text on pale accent fills.
+   • html[data-theme="light"]     — "Frost": Nordic daylight on ice
+     porcelain. Deep-teal ink text (never #000); a cold teal x warm tangerine
+     complementary scheme replaces the old indigo family. Glass overlays flip
+     to teal-alpha via --overlay-rgb, wells via --inset-rgb, shadows are
+     teal-navy instead of black.
+   • html[data-theme="sandstone"] — warm daylight: cream-sand ground, espresso
+     text, terracotta primary with olive/teal/plum/ochre companions.
+     The non-beta palettes are generated from OKLCH ramps (hue-harmonic, no
+     muddy greys) and machine-verified: every scope below defines the full
+     77-token set that :root declares in style.css, beta is value-identical to
+     :root, and all --grp-*-rgb tokens are bare "R, G, B" triplets everywhere.
+   • The six --grp-*-rgb triplet tokens are ALSO an app.js contract: the
+     #chart-stages donut reads them via getComputedStyle at render time and
+     re-renders on the document-level "themechange" event (dispatched by
+     theme.js on load and on every selection). Keep them bare "R, G, B".
+   • Theme switching itself lives in theme.js (localStorage key
+     "eng_cards_theme"); the inline head script in index.html applies the
+     stored theme before first paint to avoid a flash.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   THEME 1/4 — BETA (the current look; identical values to :root in style.css)
+   -------------------------------------------------------------------------- */
+html[data-theme="beta"] {
+  /* surfaces */
+  --bg-dark: #0f172a;
+  --bg-card: #1e293b;
+  --bg-card-hover: #334155;
+  --bg-sidebar: #0b1329;
+  --bg-card-deep: #172554;
+  --bg-code: #090d16;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-active: #6366f1;
+
+  /* text */
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --text-dark: #64748b;
+  --text-soft: #e2e8f0;
+  --text-soft-2: #f1f5f9;
+  --text-body: #cbd5e1;
+  --text-bright: #ffffff;
+  --text-on-accent: #ffffff;
+  --text-on-amber: #1c1200;
+
+  /* accents */
+  --accent-primary: #6366f1;
+  --accent-primary-hover: #4f46e5;
+  --accent-green: #10b981;
+  --accent-green-hover: #059669;
+  --accent-red: #ef4444;
+  --accent-red-hover: #dc2626;
+  --accent-amber: #f59e0b;
+  --accent-purple: #8b5cf6;
+  --accent-blue: #3b82f6;
+
+  /* accent text shades */
+  --accent-primary-soft: #a5b4fc;
+  --accent-primary-bright: #818cf8;
+  --accent-primary-pale: #c7d2fe;
+  --accent-primary-frost: #e0e7ff;
+  --accent-blue-soft: #93c5fd;
+  --accent-green-soft: #34d399;
+  --accent-green-pale: #6ee7b7;
+  --accent-red-soft: #f87171;
+  --accent-red-pale: #fca5a5;
+  --accent-amber-pale: #fcd34d;
+  --accent-amber-text: #fef08a;
+  --accent-amber-deep: #fbbf24;
+  --accent-purple-soft: #c084fc;
+  --accent-purple-pale: #d8b4fe;
+  --accent-purple-bright: #a855f7;
+  --accent-pink-soft: #f472b6;
+  --accent-gray-soft: #e5e7eb;
+
+  /* knowledge groups */
+  --grp-bank: #94a3b8;
+  --grp-new: #ef4444;
+  --grp-learning: #f97316;
+  --grp-familiar: #6366f1;
+  --grp-confident: #8b5cf6;
+  --grp-mastered: #10b981;
+
+  /* rgb triplets */
+  --accent-primary-rgb: 99, 102, 241;
+  --accent-green-rgb: 16, 185, 129;
+  --accent-red-rgb: 239, 68, 68;
+  --accent-amber-rgb: 245, 158, 11;
+  --accent-purple-rgb: 139, 92, 246;
+  --accent-blue-rgb: 59, 130, 246;
+  --accent-primary-bright-rgb: 129, 140, 248;
+  --accent-purple-bright-rgb: 168, 85, 247;
+  --accent-pink-rgb: 236, 72, 153;
+  --accent-gray-rgb: 156, 163, 175;
+  --bg-dark-rgb: 15, 23, 42;
+  --bg-card-rgb: 30, 41, 59;
+  --text-dark-rgb: 100, 116, 139;
+  --text-body-rgb: 203, 213, 225;
+  --grp-bank-rgb: 148, 163, 184;
+  --grp-new-rgb: 239, 68, 68;
+  --grp-learning-rgb: 249, 115, 22;
+  --grp-familiar-rgb: 99, 102, 241;
+  --grp-confident-rgb: 139, 92, 246;
+  --grp-mastered-rgb: 16, 185, 129;
+  --overlay-rgb: 255, 255, 255;
+  --inset-rgb: 0, 0, 0;
+  --shadow-rgb: 0, 0, 0;
+
+  /* shape & shadow */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-main: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+  --shadow-card: 0 20px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* --------------------------------------------------------------------------
+   THEME 2/4 — MIDNIGHT "Arctic": polar glacier palette. Near-black teal-blue
+   surfaces, glacial-white text, luminous cyan/mint/azure accents with
+   ice-rose and polar-gold. Violet is gone — cold sea hues, tinted borders,
+   no pure #000 anywhere.
+   -------------------------------------------------------------------------- */
+html[data-theme="midnight"] {
+  color-scheme: dark;
+  --bg-dark: #051219;
+  --bg-card: #0f1e25;
+  --bg-card-hover: #1e2c32;
+  --bg-sidebar: #010b11;
+  --bg-card-deep: #091920;
+  --bg-code: #030e14;
+  --border-color: rgba(148, 210, 220, 0.12);
+  --border-active: #79d4e4;
+  --text-main: #dfeaed;
+  --text-muted: #8d9da2;
+  --text-dark: #798b90;
+  --text-soft: #c5d2d5;
+  --text-soft-2: #d2dde0;
+  --text-body: #aebec2;
+  --text-bright: #ecf3f5;
+  --text-on-accent: #00121d;
+  --text-on-amber: #281a02;
+  --accent-primary: #6bc8d3;
+  --accent-primary-hover: #48b7c2;
+  --accent-green: #5cceb7;
+  --accent-green-hover: #33bda5;
+  --accent-red: #e37a84;
+  --accent-red-hover: #d66773;
+  --accent-amber: #e2bf76;
+  --accent-purple: #a4a2e8;
+  --accent-blue: #57afe0;
+  --accent-primary-soft: #82ccd5;
+  --accent-primary-bright: #50bdc9;
+  --accent-primary-pale: #a4d9df;
+  --accent-primary-frost: #c8e8ed;
+  --accent-blue-soft: #76bbe2;
+  --accent-green-soft: #81d3c1;
+  --accent-green-pale: #a3e0d1;
+  --accent-red-soft: #e88d94;
+  --accent-red-pale: #edaeb1;
+  --accent-amber-pale: #e6ce9d;
+  --accent-amber-text: #e1cb9e;
+  --accent-amber-deep: #d7b672;
+  --accent-purple-soft: #aeade9;
+  --accent-purple-pale: #c3c3ee;
+  --accent-purple-bright: #a4a2e8;
+  --accent-pink-soft: #d995c2;
+  --accent-gray-soft: #b1bdc1;
+  --grp-bank: #8c9b9f;
+  --grp-new: #e37a84;
+  --grp-learning: #e19d63;
+  --grp-familiar: #6ac1cb;
+  --grp-confident: #a8a6e5;
+  --grp-mastered: #61c3aa;
+  --accent-primary-rgb: 107, 200, 211;
+  --accent-green-rgb: 92, 206, 183;
+  --accent-red-rgb: 227, 122, 132;
+  --accent-amber-rgb: 226, 191, 118;
+  --accent-purple-rgb: 164, 162, 232;
+  --accent-blue-rgb: 87, 175, 224;
+  --accent-primary-bright-rgb: 80, 189, 201;
+  --accent-purple-bright-rgb: 164, 162, 232;
+  --accent-pink-rgb: 217, 149, 194;
+  --accent-gray-rgb: 177, 189, 193;
+  --bg-dark-rgb: 5, 18, 25;
+  --bg-card-rgb: 15, 30, 37;
+  --text-dark-rgb: 121, 139, 144;
+  --text-body-rgb: 174, 190, 194;
+  --grp-bank-rgb: 140, 155, 159;
+  --grp-new-rgb: 227, 122, 132;
+  --grp-learning-rgb: 225, 157, 99;
+  --grp-familiar-rgb: 106, 193, 203;
+  --grp-confident-rgb: 168, 166, 229;
+  --grp-mastered-rgb: 97, 195, 170;
+  --overlay-rgb: 255, 255, 255;
+  --inset-rgb: 3, 10, 16;
+  --shadow-rgb: 3, 10, 16;
+
+  /* shape & shadow — abyssal blue-black shadows */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-main: 0 12px 28px -6px rgba(2, 8, 14, 0.6), 0 6px 12px -6px rgba(2, 8, 14, 0.45);
+  --shadow-card: 0 20px 32px rgba(2, 8, 14, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   THEME 3/4 — LIGHT "Frost": Nordic daylight on ice porcelain. Frost-tinted
+   grounds, deep-teal ink text, and a cold-warm complementary scheme — deep
+   teal primary against tangerine, raspberry and forest — instead of the old
+   indigo family. Overlays/insets/shadows ride the same teal axis (no black).
+   -------------------------------------------------------------------------- */
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg-dark: #e8f2f5;
+  --bg-card: #f7fcfd;
+  --bg-card-hover: #d6e6ea;
+  --bg-sidebar: #deedf0;
+  --bg-card-deep: #d0e2e6;
+  --bg-code: #e4eff1;
+  --border-color: rgba(22, 56, 68, 0.13);
+  --border-active: #006984;
+  --text-main: #163844;
+  --text-muted: #556c74;
+  --text-dark: #586d75;
+  --text-soft: #2f4d58;
+  --text-soft-2: #23424e;
+  --text-body: #3e5a65;
+  --text-bright: #002633;
+  --text-on-accent: #f3fafb;
+  --text-on-amber: #faf4ee;
+  --accent-primary: #00617c;
+  --accent-primary-hover: #00566e;
+  --accent-green: #006845;
+  --accent-green-hover: #005c3b;
+  --accent-red: #b71f49;
+  --accent-red-hover: #a0163e;
+  --accent-amber: #9e4200;
+  --accent-purple: #643fd1;
+  --accent-blue: #1d73a5;
+  --accent-primary-soft: #00617c;
+  --accent-primary-bright: #00617c;
+  --accent-primary-pale: #00566e;
+  --accent-primary-frost: #004b62;
+  --accent-blue-soft: #0e6a9b;
+  --accent-green-soft: #006342;
+  --accent-green-pale: #006444;
+  --accent-red-soft: #b71f49;
+  --accent-red-pale: #9f1746;
+  --accent-amber-pale: #8f3800;
+  --accent-amber-text: #954200;
+  --accent-amber-deep: #954200;
+  --accent-purple-soft: #5b3cbc;
+  --accent-purple-pale: #5b3cbc;
+  --accent-purple-bright: #5b3cbc;
+  --accent-pink-soft: #ab285a;
+  --accent-gray-soft: #49585d;
+  --grp-bank: #4f5e62;
+  --grp-new: #b71f49;
+  --grp-learning: #9e4200;
+  --grp-familiar: #00617c;
+  --grp-confident: #6443cc;
+  --grp-mastered: #006c4a;
+  --accent-primary-rgb: 0, 97, 124;
+  --accent-green-rgb: 0, 104, 69;
+  --accent-red-rgb: 183, 31, 73;
+  --accent-amber-rgb: 158, 66, 0;
+  --accent-purple-rgb: 100, 63, 209;
+  --accent-blue-rgb: 29, 115, 165;
+  --accent-primary-bright-rgb: 0, 97, 124;
+  --accent-purple-bright-rgb: 91, 60, 188;
+  --accent-pink-rgb: 171, 40, 90;
+  --accent-gray-rgb: 73, 88, 93;
+  --bg-dark-rgb: 232, 242, 245;
+  --bg-card-rgb: 247, 252, 253;
+  --text-dark-rgb: 88, 109, 117;
+  --text-body-rgb: 62, 90, 101;
+  --grp-bank-rgb: 79, 94, 98;
+  --grp-new-rgb: 183, 31, 73;
+  --grp-learning-rgb: 158, 66, 0;
+  --grp-familiar-rgb: 0, 97, 124;
+  --grp-confident-rgb: 100, 67, 204;
+  --grp-mastered-rgb: 0, 108, 74;
+  --overlay-rgb: 22, 56, 68;     /* glass overlays become deep-teal tints */
+  --inset-rgb: 96, 140, 152;     /* recessed wells become cool slate-teal */
+  --shadow-rgb: 32, 80, 96;      /* teal-navy shadows, never black */
+
+  /* shape & shadow — cool and airy */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-main: 0 10px 26px -6px rgba(20, 60, 74, 0.18), 0 8px 12px -8px rgba(20, 60, 74, 0.10);
+  --shadow-card: 0 18px 34px rgba(20, 60, 74, 0.13);
+}
+
+/* --------------------------------------------------------------------------
+   THEME 4/4 — SANDSTONE: warm daylight study room. Cream-sand surfaces,
+   espresso text, terracotta primary with olive, teal, plum and ochre —
+   an earthy analogue of the cool Frost ramp. Same WCAG AA audit.
+   -------------------------------------------------------------------------- */
+html[data-theme="sandstone"] {
+  color-scheme: light;
+  /* surfaces */
+  --bg-dark: #f5f0e4;
+  --bg-card: #fcfbf5;
+  --bg-card-hover: #e8e3d4;
+  --bg-sidebar: #ede7d8;
+  --bg-card-deep: #e4decd;
+  --bg-code: #f0ebde;
+  --border-color: rgba(82, 57, 33, 0.14);
+  --border-active: #923500;
+
+  /* text */
+  --text-main: #3f2f21;
+  --text-muted: #74685c;
+  --text-dark: #756a5d;
+  --text-soft: #534437;
+  --text-soft-2: #493a2c;
+  --text-body: #605245;
+  --text-bright: #312012;
+  --text-on-accent: #fbf8f1;
+  --text-on-amber: #f8f1e3;
+
+  /* accents — clay, olive, teal, plum, ochre */
+  --accent-primary: #923500;
+  --accent-primary-hover: #812d00;
+  --accent-green: #256b3a;
+  --accent-green-hover: #135c2c;
+  --accent-red: #ad2f22;
+  --accent-red-hover: #97271b;
+  --accent-amber: #884800;
+  --accent-purple: #a13567;
+  --accent-blue: #00727d;
+
+  /* accent text shades */
+  --accent-primary-soft: #923500;
+  --accent-primary-bright: #923500;
+  --accent-primary-pale: #9e3900;
+  --accent-primary-frost: #8d3000;
+  --accent-blue-soft: #006671;
+  --accent-green-soft: #206133;
+  --accent-green-pale: #1a582d;
+  --accent-red-soft: #ad2f22;
+  --accent-red-pale: #972527;
+  --accent-amber-pale: #884800;
+  --accent-amber-text: #7b4300;
+  --accent-amber-deep: #7b4300;
+  --accent-purple-soft: #902e5c;
+  --accent-purple-pale: #902e5c;
+  --accent-purple-bright: #902e5c;
+  --accent-pink-soft: #a32e55;
+  --accent-gray-soft: #5f564d;
+
+  /* knowledge groups — readable on cream */
+  --grp-bank: #696258;
+  --grp-new: #ad2f22;
+  --grp-learning: #9b4805;
+  --grp-familiar: #2a61b1;
+  --grp-confident: #9a2f62;
+  --grp-mastered: #256b3a;
+
+  /* rgb triplets */
+  --accent-primary-rgb: 146, 53, 0;
+  --accent-green-rgb: 37, 107, 58;
+  --accent-red-rgb: 173, 47, 34;
+  --accent-amber-rgb: 136, 72, 0;
+  --accent-purple-rgb: 161, 53, 103;
+  --accent-blue-rgb: 0, 114, 125;
+  --accent-primary-bright-rgb: 146, 53, 0;
+  --accent-purple-bright-rgb: 144, 46, 92;
+  --accent-pink-rgb: 163, 46, 85;
+  --accent-gray-rgb: 95, 86, 77;
+  --bg-dark-rgb: 245, 240, 228;
+  --bg-card-rgb: 252, 251, 245;
+  --text-dark-rgb: 117, 106, 93;
+  --text-body-rgb: 96, 82, 69;
+  --grp-bank-rgb: 105, 98, 88;
+  --grp-new-rgb: 173, 47, 34;
+  --grp-learning-rgb: 155, 72, 5;
+  --grp-familiar-rgb: 42, 97, 177;
+  --grp-confident-rgb: 154, 47, 98;
+  --grp-mastered-rgb: 37, 107, 58;
+  --overlay-rgb: 66, 42, 20;    /* glass overlays become warm-brown tints */
+  --inset-rgb: 171, 150, 112;   /* recessed wells become soft taupe */
+  --shadow-rgb: 94, 62, 26;     /* warm brown shadows instead of black */
+
+  /* shape & shadow — soft on sand */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-main: 0 10px 25px -5px rgba(94, 62, 26, 0.16), 0 8px 10px -6px rgba(94, 62, 26, 0.10);
+  --shadow-card: 0 20px 30px rgba(94, 62, 26, 0.12);
+}

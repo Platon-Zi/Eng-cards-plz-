@@ -1,10 +1,24 @@
 {
   "name": "leitner-flashcards",
-  "version": "0.1.0",
-  "description": "Offline Leitner flashcard system for English learning",
+  "version": "2.0.0",
+  "description": "Offline spaced-repetition flashcards for English learning (schema 2: two independent direction vectors, six knowledge groups)",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "serve": "python3 -m http.server 8123",
+    "test:srs": "node --test .verify/test-srs.cjs",
+    "test": "node --test .verify/test-srs.cjs",
+    "check:syntax": "node --check srs.js && node --check app.js && node --check main.js && node --check theme.js && node --check polish.js && node --check datacare.js && node --check scripts/add_words.js && node --check scripts/migrate-offline.cjs",
+    "check:dom": "node .verify/check.cjs",
+    "check:ui": "node .verify/interact.cjs",
+    "check:polish": "node .verify/check-polish.cjs",
+    "check:backup": "node .verify/check-backup.cjs",
+    "check:theme": "node tools/theme/css_check.cjs && node tools/theme/theme_test.cjs && node tools/theme/verify_ui.cjs",
+    "check:wcag": "node tools/theme/theme_verify.mjs",
+    "verify": "npm run check:syntax && npm run test:srs && npm run check:dom && npm run check:ui && npm run check:polish && npm run check:datacare && npm run check:backup && npm run check:theme && npm run check:wcag",
+    "migrate": "node scripts/migrate-offline.cjs",
+    "migrate:dry": "node scripts/migrate-offline.cjs --dry-run",
+    "check:datacare": "node .verify/check-datacare.cjs"
   },
   "author": "",
   "license": "MIT",
