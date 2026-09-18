@@ -1171,11 +1171,68 @@ function renderStatsScreen() {
     } else {
       drawFallbackDonutChart(canvasStages, stageLabels, stageCounts, stageColors);
     }
+    if (canvasStages._chart) {
+      // «Понт» с пользой: клик по срезу открывает эту группу в Dictionary.
+      canvasStages._chart.click = (i) => openGroupInDictionary(CHART_BUCKETS[i]);
+    }
   }
 }
 
-function drawFallbackBarChart(canvas, labels, data) {
+/* ============ ИНТЕРАКТИВНЫЙ СЛОЙ ГРАФИКОВ (18.09, «понты по делу») ============
+ * Hover: сегмент светится/«всплывает», у столбика ярче шапка, всплывает
+ * общий тултип #chart-tooltip (статичный элемент в index.html — контракт
+ * check.cjs «все static id из app.js есть в разметке»). Клик по срезу доната
+ * групп ведёт в Dictionary с фильтром (openGroupInDictionary). Всё деградирует
+ * тихо: нет _chart — нет интерактива. */
+function showChartTooltip(clientX, clientY, html) {
+  const el = document.getElementById('chart-tooltip');
+  if (!el) return;
+  el.innerHTML = html;
+  el.hidden = false;
+  const pad = 14;
+  const r = el.getBoundingClientRect();
+  let x = clientX + pad, y = clientY + pad;
+  if (x + r.width > window.innerWidth - 8) x = clientX - r.width - pad;
+  if (y + r.height > window.innerHeight - 8) y = clientY - r.height - pad;
+  el.style.left = Math.max(4, x) + 'px';
+  el.style.top = Math.max(4, y) + 'px';
+}
+function hideChartTooltip() {
+  const el = document.getElementById('chart-tooltip');
+  if (el) el.hidden = true;
+}
+function bindChartHover(canvas) {
+  if (!canvas || canvas._hoverBound) return;
+  canvas._hoverBound = true;
+  canvas.addEventListener('mousemove', (e) => {
+    const st = canvas._chart;
+    if (!st || typeof st.hit !== 'function') return;
+    const rect = canvas.getBoundingClientRect();
+    const idx = st.hit(e.clientX - rect.left, e.clientY - rect.top);
+    if (idx !== st.hover) { st.hover = idx; st.redraw(idx); }
+    if (idx >= 0) {
+      showChartTooltip(e.clientX, e.clientY, st.tipFor(idx));
+      canvas.style.cursor = st.click ? 'pointer' : 'default';
+    } else {
+      hideChartTooltip();
+      canvas.style.cursor = 'default';
+    }
+  });
+  canvas.addEventListener('mouseleave', () => {
+    const st = canvas._chart;
+    hideChartTooltip();
+    canvas.style.cursor = 'default';
+    if (st && st.hover !== -1) { st.hover = -1; st.redraw(-1); }
+  });
+  canvas.addEventListener('click', () => {
+    const st = canvas._chart;
+    if (st && st.click && st.hover >= 0) st.click(st.hover);
+  });
+}
+
+function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
   if (!canvas) return;
+  hoverIdx = typeof hoverIdx === 'number' ? hoverIdx : -1;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -1187,6 +1244,14 @@ function drawFallbackBarChart(canvas, labels, data) {
   const height = rect.height || 260;
 
   ctx.clearRect(0, 0, width, height);
+
+  // Палитра — из текущей темы (самописный canvas был закрашен литералами
+  // тёмной «Беты» и на светлых Frost/sandstone терял сетку и подписи).
+  const fbMuted = themeToken('--text-muted', '#94a3b8');
+  const fbAccent = themeToken('--accent-primary', '#6366f1');
+  const fbGrid = themeRgba('--overlay-rgb', '128, 128, 128', 0.14);
+  const fbEmpty = themeRgba('--overlay-rgb', '128, 128, 128', 0.07);
+  const fbAccentHi = themeToken('--accent-primary-hover', fbAccent);
 
   const maxVal = Math.max(5, ...data);
   const paddingBottom = 30;
@@ -1200,7 +1265,7 @@ function drawFallbackBarChart(canvas, labels, data) {
   const barWidth = Math.max(4, (chartW / data.length) - barGap);
 
   // Y Grid
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.strokeStyle = fbGrid;
   ctx.lineWidth = 1;
   for (let i = 0; i <= 4; i++) {
     const y = paddingTop + (chartH / 4) * i;
@@ -1209,7 +1274,7 @@ function drawFallbackBarChart(canvas, labels, data) {
     ctx.lineTo(width - paddingRight, y);
     ctx.stroke();
 
-    ctx.fillStyle = '#64748b';
+    ctx.fillStyle = fbMuted;
     ctx.font = '10px sans-serif';
     const valLabel = Math.round(maxVal - (maxVal / 4) * i);
     ctx.fillText(String(valLabel), 6, y + 3);
@@ -1221,26 +1286,52 @@ function drawFallbackBarChart(canvas, labels, data) {
     const barH = (val / maxVal) * chartH;
     const y = paddingTop + chartH - barH;
 
-    ctx.fillStyle = val > 0 ? '#6366f1' : 'rgba(255,255,255,0.05)';
+    const hovered = idx === hoverIdx;
+    ctx.save();
+    if (hovered) { ctx.shadowColor = fbAccent; ctx.shadowBlur = 16; }
+    ctx.fillStyle = val > 0 ? (hovered ? fbAccentHi : fbAccent) : fbEmpty;
     ctx.beginPath();
     if (ctx.roundRect) {
-      ctx.roundRect(x, y, barWidth, barH, [4, 4, 0, 0]);
+      ctx.roundRect(x, y, barWidth, hovered ? barH : barH, [4, 4, 0, 0]);
     } else {
       ctx.rect(x, y, barWidth, barH);
     }
     ctx.fill();
+    ctx.restore();
+
+    if (val > 0) {
+      ctx.fillStyle = hovered ? fbAccentHi : fbMuted;
+      ctx.font = (hovered ? '700 ' : '600 ') + '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(val), x + barWidth / 2, y - 4);
+    }
 
     if (idx % 2 === 0) {
-      ctx.fillStyle = '#94a3b8';
+      ctx.fillStyle = fbMuted;
       ctx.font = '10px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(labels[idx], x + barWidth / 2, height - 10);
     }
   });
+
+  // Интерактив: щедрые «колонки» во всю высоту графика.
+  canvas._chart = {
+    kind: 'bar',
+    hover: hoverIdx,
+    hit: (mx, my) => {
+      if (mx < paddingLeft || my < paddingTop - 6 || my > paddingTop + chartH + 24) return -1;
+      const i = Math.floor((mx - paddingLeft) / (barWidth + barGap));
+      return (i >= 0 && i < data.length) ? i : -1;
+    },
+    tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} ${data[i] === 1 ? 'review' : 'reviews'}`,
+    redraw: (h) => drawFallbackBarChart(canvas, labels, data, h)
+  };
+  bindChartHover(canvas);
 }
 
-function drawFallbackDonutChart(canvas, labels, data, colors) {
+function drawFallbackDonutChart(canvas, labels, data, colors, centerWord, hoverIdx) {
   if (!canvas) return;
+  hoverIdx = typeof hoverIdx === 'number' ? hoverIdx : -1;
   const ctx = canvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
@@ -1260,35 +1351,91 @@ function drawFallbackDonutChart(canvas, labels, data, colors) {
   const innerRadius = outerRadius * 0.6;
 
   let startAngle = -Math.PI / 2;
+  const slices = [];
 
   data.forEach((val, i) => {
     const sliceAngle = (val / total) * 2 * Math.PI;
     const endAngle = startAngle + sliceAngle;
+    const hovered = i === hoverIdx && val > 0;
+    const mid = (startAngle + endAngle) / 2;
+    const off = hovered ? 7 : 0;
+    const cx = centerX + Math.cos(mid) * off;
+    const cy = centerY + Math.sin(mid) * off;
 
+    ctx.save();
+    if (hovered) { ctx.shadowColor = colors[i]; ctx.shadowBlur = 18; }
     ctx.beginPath();
-    ctx.arc(centerX, centerY, outerRadius, startAngle, endAngle);
-    ctx.arc(centerX, centerY, innerRadius, endAngle, startAngle, true);
+    ctx.arc(cx, cy, outerRadius + (hovered ? 3 : 0), startAngle, endAngle);
+    ctx.arc(cx, cy, innerRadius, endAngle, startAngle, true);
     ctx.closePath();
     ctx.fillStyle = colors[i];
     ctx.fill();
+    ctx.restore();
 
+    slices.push({ s: startAngle, e: endAngle });
     startAngle = endAngle;
   });
+
+  // Центр «дырки»: при наведении — сегмент крупно, иначе общая сумма.
+  ctx.textAlign = 'center';
+  if (hoverIdx >= 0 && data[hoverIdx] !== undefined && data[hoverIdx] > 0) {
+    const pct = Math.round((data[hoverIdx] / total) * 100);
+    ctx.fillStyle = themeToken('--text-muted', '#94a3b8');
+    ctx.font = '700 10px sans-serif';
+    ctx.fillText(String(labels[hoverIdx]).toUpperCase(), centerX, centerY - 12);
+    ctx.fillStyle = themeToken('--text-bright', '#f1f5f9');
+    ctx.font = '800 24px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(String(data[hoverIdx]), centerX, centerY + 10);
+    ctx.fillStyle = themeToken('--text-muted', '#94a3b8');
+    ctx.font = '10px sans-serif';
+    ctx.fillText(pct + '% of total', centerX, centerY + 26);
+  } else {
+    ctx.fillStyle = themeToken('--text-bright', '#f1f5f9');
+    ctx.font = '800 22px "Plus Jakarta Sans", sans-serif';
+    ctx.fillText(String(data.reduce((a, b) => a + b, 0)), centerX, centerY + 2);
+    ctx.fillStyle = themeToken('--text-muted', '#94a3b8');
+    ctx.font = '10px sans-serif';
+    ctx.fillText(centerWord || 'words total', centerX, centerY + 18);
+  }
 
   // Legend
   const legendX = width * 0.7;
   let legendY = height * 0.2;
   labels.forEach((label, i) => {
+    const hovered = i === hoverIdx && data[i] > 0;
+    ctx.save();
+    if (hovered) { ctx.shadowColor = colors[i]; ctx.shadowBlur = 10; }
     ctx.fillStyle = colors[i];
-    ctx.fillRect(legendX, legendY, 12, 12);
+    ctx.fillRect(legendX, legendY - (hovered ? 1 : 0), 12, hovered ? 14 : 12);
+    ctx.restore();
 
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '12px sans-serif';
+    ctx.fillStyle = hovered ? themeToken('--text-bright', '#f1f5f9') : themeToken('--text-main', '#cbd5e1');
+    ctx.font = (hovered ? '700 ' : '') + '12px sans-serif';
     ctx.textAlign = 'left';
     ctx.fillText(`${label}: ${data[i]}`, legendX + 18, legendY + 10);
 
     legendY += 24;
   });
+
+  // Интерактив: кольцо между inner и outer радиусами, угол → срез.
+  canvas._chart = {
+    kind: 'donut',
+    hover: hoverIdx,
+    hit: (mx, my) => {
+      const dx = mx - centerX, dy = my - centerY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < innerRadius - 8 || dist > outerRadius + 12) return -1;
+      let a = Math.atan2(dy, dx);
+      while (a < -Math.PI / 2) a += Math.PI * 2;
+      for (let i = 0; i < slices.length; i++) {
+        if (a >= slices[i].s && a < slices[i].e && data[i] > 0) return i;
+      }
+      return -1;
+    },
+    tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} (${Math.round((data[i] / total) * 100)}%)`,
+    redraw: (h) => drawFallbackDonutChart(canvas, labels, data, colors, centerWord, h)
+  };
+  bindChartHover(canvas);
 }
 
 // ==========================================
@@ -3114,12 +3261,16 @@ function renderMistakesTable() {
     return;
   }
 
-  mistakes.forEach(card => {
+  mistakes.forEach((card, rank) => {
     const tr = document.createElement('tr');
+    // Медали топ-3 — «зал славы» самых упрямых слов. Слово/перевод экранируем:
+    // innerHTML + nodeIntegration = пользовательские данные не должны парситься как HTML.
+    const medal = rank < 3 ? `<span class="rank-medal">${['🥇', '🥈', '🥉'][rank]}</span>` : '';
+    const resets = Number(card.fail_count) || 0;
     tr.innerHTML = `
-      <td><b>${card.word}</b></td>
-      <td>${card.translation}</td>
-      <td><span class="badge" style="background:rgba(239,68,68,0.2); color:#ef4444;">${card.fail_count} resets</span></td>
+      <td>${medal}<b>${escapeHtml(card.word)}</b></td>
+      <td>${escapeHtml(card.translation)}</td>
+      <td><span class="badge badge-resets">${resets} ${resets === 1 ? 'reset' : 'resets'}</span></td>
       <td>${groupBadgeHtml(card)}</td>
     `;
     tbody.appendChild(tr);

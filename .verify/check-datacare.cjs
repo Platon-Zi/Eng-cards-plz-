@@ -42,6 +42,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 const checks = [];
 const rec = (name, ok, evidence) => checks.push({ name, ok: !!ok, evidence: evidence == null ? '' : String(evidence) });
 const $ = sel => d.querySelector(sel);
+  const $$ = (sel) => [...d.querySelectorAll(sel)];
 
 (async () => {
   await wait(1500);
@@ -98,6 +99,39 @@ const $ = sel => d.querySelector(sel);
   const guideText = $('#screen-guide').textContent;
   rec('EN-гайд: ссылки на «left panel» не осталось', !/left panel/i.test(guideText));
   rec('RU-гайд: ссылки на «левой панели» не осталось', !/левой панели/i.test(guideText));
+
+  // ── 7. STATS v2: outcomes donut + direction bars ──────────────────────────
+  w.eval("switchScreen('stats')");
+  await wait(150);
+  rec('switchScreen("stats") делает экран активным', $('#screen-stats').classList.contains('active'));
+  rec('пояснения .stat-explain ≥6', $('#screen-stats').querySelectorAll('.stat-explain').length >= 6,
+    String($('#screen-stats').querySelectorAll('.stat-explain').length));
+  const pe = ($('#ds-en-ru-pct').textContent || '').trim();
+  const pr = ($('#ds-ru-en-pct').textContent || '').trim();
+  rec('dir pcts отрендерены (NN% или —)', (/^\d{1,3}%$/.test(pe) || pe === '—') && (/^\d{1,3}%$/.test(pr) || pr === '—'), pe + ' / ' + pr);
+  const histGrand = Number(w.eval(`(function(){var h=(window.LEITNER_DATA.history||{});var g=0;Object.keys(h).forEach(function(k){var b=(h[k]||{}).byAnswer||{};g+=(b.again||0)+(b.hard||0)+(b.easy||0);});return g;})()`));
+  const emptyHidden = $('#chart-outcomes-empty').hidden;
+  rec('empty-state консистентен с историей', emptyHidden === (histGrand > 0), `history=${histGrand} hidden=${emptyHidden}`);
+  const weakerTags = [$('#ds-en-ru-tag').textContent, $('#ds-ru-en-tag').textContent].filter(x => x === 'weaker').length;
+  rec('тег weaker не более одного', weakerTags <= 1, String(weakerTags));
+  rec('пояснения есть у всех четырёх старых секций',
+    ['14-Day Activity', 'Knowledge Group Distribution', 'Activity Heatmap', 'Hard Words'].every(h3text => {
+      const h3 = [...$('#screen-stats').querySelectorAll('h3')].find(x => x.textContent.includes(h3text));
+      return h3 && h3.parentElement.parentElement.querySelector('.stat-explain');
+    }));
+
+  // ── 8. STATS v3: ribbon + highlights ──────────────────────────────────────
+  const segs = $$('#mastery-ribbon .mseg');
+  rec('лента: 6 сегментов-кнопок', segs.length === 6, String(segs.length));
+  rec('лента: ненулевые сегменты кликабельны', segs.every(sg => sg.style.width === '0%' ? sg.disabled : !sg.disabled));
+  rec('легенда: 6 чипов с числами', $$('#ribbon-legend .rl-chip').length === 6 &&
+    $$('#ribbon-legend .rl-count').every(x => /^\d+$/.test(x.textContent.trim())));
+  const hlIds = ['hl-total-answers', 'hl-best-day', 'hl-best-streak', 'hl-perfect-days'];
+  rec('highlights заполнены (число/тире+дата, без пустот)', hlIds.every(id => ($('#' + id).textContent || '').trim().length > 0),
+    hlIds.map(id => id + '=' + $('#' + id).textContent).join(' '));
+  const ribbonSum = $$('#ribbon-legend .rl-count').reduce((a, x) => a + Number(x.textContent), 0);
+  rec('легенда: сумма = размер базы', ribbonSum === Number(w.LEITNER_DATA.cards.length), ribbonSum + ' vs ' + w.LEITNER_DATA.cards.length);
+  rec('тултип графиков в разметке и скрыт', !!$('#chart-tooltip') && $('#chart-tooltip').hidden);
 
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 

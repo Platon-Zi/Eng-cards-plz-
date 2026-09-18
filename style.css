@@ -183,16 +183,6 @@ body {
   background: rgba(var(--overlay-rgb), 0.3);
 }
 
-.nav-header {
-  flex-shrink: 0;
-}
-
-.nav-header h2 {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
 .offline-badge {
   display: inline-block;
   margin-top: 4px;
@@ -294,31 +284,7 @@ body {
   margin-bottom: 16px;
 }
 
-.streak-badge {
-  background: linear-gradient(135deg, rgba(var(--accent-amber-rgb), 0.15), rgba(var(--accent-red-rgb), 0.15));
-  border: 1px solid rgba(var(--accent-amber-rgb), 0.3);
-  padding: 4px 12px;
-  border-radius: 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.streak-icon {
-  font-size: 16px;
-}
-
-.streak-count {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--accent-amber);
-}
-
-.streak-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
+/* .streak-* пилюля упразднена: day streak живёт KPI-плиткой на Statistics. */
 
 /* Metrics Grid */
 .metrics-grid {
@@ -3729,4 +3695,404 @@ input, textarea,
   color: var(--text-soft);
   line-height: 1.55;
   padding-left: 2px;
+}
+
+/* --------------------------------------------------------------------------
+   BRANDING v2 (Vocaba) + titlebar meta — 18.09 follow-up
+   -------------------------------------------------------------------------- */
+.app-name {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: var(--text-bright);
+}
+
+/* The three meta labels (offline / streak / vocabulary) now share the top
+   line with the theme picker. Non-draggable so they never block window drag
+   on the rest of the bar. */
+.titlebar-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 6px;
+  -webkit-app-region: no-drag;
+}
+.titlebar-meta .offline-badge {
+  margin-top: 0;
+  padding: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+}
+/* Reserve the top-right for the Windows titleBarOverlay caption buttons
+   (main.js: titleBarStyle hidden + titleBarOverlay height 38), so the
+   right-aligned author handle never lands under the close button. */
+.window-titlebar { padding-right: 148px; }
+
+/* Subtle author handle: far right of the titlebar, quiet until hovered. */
+.app-author {
+  margin-left: auto;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+  font-size: 11px;
+  padding-right: 4px;
+}
+.aa-mail {
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--text-muted);
+  opacity: 0.38;
+  user-select: text;
+  cursor: default;
+  transition: opacity 0.18s ease, color 0.18s ease;
+}
+.app-author:hover .aa-mail,
+.app-author:focus-visible .aa-mail,
+.app-author:focus-within .aa-mail {
+  opacity: 1;
+  color: var(--accent-blue);
+  outline: none;
+}
+.app-author:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- hover карточка контактов (остается открытой пока мышь внутри, текст выделяется) --- */
+.contact-pop {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 3100;
+  padding-top: 10px;               /* мостик: между строкой и карточкой нет мёртвой щели */
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0s linear 0.16s;
+}
+.app-author:hover .contact-pop,
+.app-author:focus-within .contact-pop,
+.contact-pop:hover {
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0s;
+}
+/* `* { user-select:none }` цепляет строки карточки НАПРЯМУЮ (универсальный
+   селектор), поэтому текст можно выделить только явно для карточки И детей. */
+.cp-card,
+.cp-card > * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.cp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 218px;
+  padding: 11px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-main);
+  user-select: text;
+  cursor: text;
+  white-space: nowrap;
+}
+.cp-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-bright);
+  letter-spacing: 0.2px;
+}
+.cp-line {
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+/* Left menu rides a little higher now the sidebar header is gone. */
+.sidebar { padding-top: 14px; }
+
+/* Bigger primary dashboard actions (scoped to the dashboard so the group
+   detail modal keeps its compact hero). */
+#screen-dashboard .btn-hero { min-height: 138px; padding: 30px; gap: 24px; }
+#screen-dashboard .hero-icon { font-size: 54px; }
+#screen-dashboard .hero-title { font-size: 28px; }
+#screen-dashboard .hero-sub { font-size: 15px; }
+
+/* --------------------------------------------------------------------------
+   SIDEBAR v3 + DASHBOARD REORDER — 18.09 night batch
+   -------------------------------------------------------------------------- */
+
+/* Навигация: чистый список без «коробок». Разделённость — воздух + мягкие
+   ховер-пилюли; активный пункт — фирменный accent, как был. */
+.nav-menu { gap: 5px; }
+.nav-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  font-size: 15px;
+}
+.nav-btn .icon { font-size: 19px; }
+.nav-btn:hover { background: rgba(var(--overlay-rgb), 0.06); }
+.nav-btn.active {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border-color: transparent;
+}
+
+/* Dashboard — главная вкладка: крупнее всех и всегда чуть подсвечена
+   фирменным оттенком, чтобы выделялась на фоне списка. */
+.nav-btn[data-screen="dashboard"] {
+  padding: 18px 16px;
+  font-size: 16.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--text-main);
+  background: rgba(var(--accent-primary-rgb), 0.09);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.32);
+}
+.nav-btn[data-screen="dashboard"] .icon { font-size: 22px; }
+.nav-btn[data-screen="dashboard"]:hover { background: rgba(var(--accent-primary-rgb), 0.17); }
+.nav-btn[data-screen="dashboard"].active {
+  background: var(--accent-primary);
+  color: var(--text-on-accent);
+  border-color: transparent;
+  box-shadow: 0 6px 18px rgba(var(--accent-primary-rgb), 0.35);
+}
+
+/* Переключатель цвета — заметный в 38px полосе (из прошлой партии). */
+.theme-picker-btn { height: 33px; min-width: 44px; padding: 0 11px; gap: 8px; }
+.theme-picker-dot { width: 14px; height: 14px; border-width: 1.5px; }
+.theme-picker-caret { font-size: 11px; }
+
+/* Порядок дашборда: hero от самого верха → Knowledge Groups → тонкие метрики вниз. */
+#screen-dashboard { margin-top: -16px; }
+#screen-dashboard .action-grid { margin-top: 0; }
+#screen-dashboard .btn-hero { min-height: 196px; padding: 34px; }
+#screen-dashboard .hero-icon { font-size: 58px; }
+#screen-dashboard .hero-title { font-size: 29px; }
+#screen-dashboard .kg-section { margin-top: 22px; }
+#screen-dashboard .metrics-grid { margin-top: 22px; margin-bottom: 8px; }
+#screen-dashboard .metric-card { padding: 10px 14px; gap: 10px; }
+#screen-dashboard .metric-icon { width: 34px; height: 34px; border-radius: 9px; font-size: 16px; }
+#screen-dashboard .metric-value { font-size: 19px; font-weight: 700; }
+#screen-dashboard .metric-label { font-size: 10px; font-weight: 500; letter-spacing: 0.4px; margin-top: 0; }
+
+/* --------------------------------------------------------------------------
+   STATS SCREEN v2 — plain-language captions + outcomes/direction visuals
+   -------------------------------------------------------------------------- */
+.stat-explain {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  margin: -10px 0 14px;
+  max-width: 68ch;
+}
+.stat-explain b { color: var(--text-main); font-weight: 700; }
+.stat-empty {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: rgba(var(--overlay-rgb), 0.05);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+.dir-strength { display: flex; flex-direction: column; gap: 14px; padding-top: 8px; }
+.ds-row { display: flex; align-items: center; gap: 12px; }
+.ds-name { width: 112px; flex-shrink: 0; font-size: 13px; font-weight: 700; color: var(--text-main); white-space: nowrap; }
+.ds-track {
+  flex: 1;
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(var(--overlay-rgb), 0.08);
+  overflow: hidden;
+}
+.ds-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 6px;
+  background: var(--accent-primary);
+  transition: width 0.2s ease;
+}
+.ds-pct {
+  width: 46px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-bright);
+  font-variant-numeric: tabular-nums;
+}
+.ds-tag {
+  width: 50px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--accent-amber);
+}
+.ds-note { margin: 2px 0 0; }
+
+/* --------------------------------------------------------------------------
+   STATS SCREEN v3 — «понты по делу»: ribbon, highlights, glow, tooltip
+   -------------------------------------------------------------------------- */
+/* общий тултип canvas-графиков (позиционируется из app.js по курсору) */
+.chart-tooltip {
+  position: fixed;
+  z-index: 2500;
+  pointer-events: none;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-main);
+  box-shadow: var(--shadow-main);
+  white-space: nowrap;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+.chart-tooltip b { color: var(--text-bright); }
+.chart-tooltip[hidden] { display: none; }
+
+/* Journey to Mastery: сегментная лента */
+.mastery-card .section-header { margin-bottom: 14px; }
+.mastery-ribbon {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  min-height: 40px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  border-radius: 12px;
+}
+.mseg {
+  border: none;
+  padding: 0;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transform-origin: center bottom;
+}
+.mseg:disabled { cursor: default; }
+.mseg:not(:disabled):hover,
+.mseg:not(:disabled):focus-visible {
+  filter: brightness(1.28) saturate(1.1);
+  transform: scaleY(1.16);
+  box-shadow: 0 6px 18px rgba(var(--shadow-rgb), 0.35);
+  z-index: 1;
+}
+.mseg:focus-visible { outline: 2px solid var(--accent-primary); outline-offset: 2px; }
+.ribbon-empty { font-size: 12px; color: var(--text-muted); padding: 10px; }
+.ribbon-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; }
+.rl-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
+.rl-chip b { color: var(--text-main); font-weight: 700; font-size: 10.5px; letter-spacing: 0.4px; text-transform: uppercase; }
+.rl-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+.rl-count { font-weight: 800; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+
+/* Personal Highlights */
+.highlights-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+.hl-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: rgba(var(--overlay-rgb), 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.hl-item:hover {
+  transform: translateY(-3px);
+  border-color: rgba(var(--accent-primary-rgb), 0.5);
+  box-shadow: 0 10px 24px rgba(var(--shadow-rgb), 0.24);
+}
+.hl-icon {
+  font-size: 21px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--accent-primary-rgb), 0.2), rgba(var(--accent-primary-rgb), 0.05));
+  flex-shrink: 0;
+}
+.hl-data { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hl-value {
+  font-size: 19px;
+  font-weight: 800;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-blue));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hl-label { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.3px; line-height: 1.4; }
+
+/* Hard Words: медали топ-3 + реджет-бейдж на токенах (был inline-литерал) */
+.rank-medal { margin-right: 7px; font-size: 14px; }
+.badge-resets { background: rgba(var(--accent-red-rgb), 0.16); color: var(--accent-red); }
+
+/* KPI: диагональный блик одним коротким свипом на hover */
+.kpi-card { position: relative; overflow: hidden; }
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(var(--overlay-rgb), 0.09) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 0.22s ease;
+  pointer-events: none;
+}
+.kpi-card:hover::after { transform: translateX(130%); }
+
+/* heatmap: ячейка «вспухает» при наведении */
+.h-cell { transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.h-cell:hover {
+  transform: scale(1.45);
+  box-shadow: 0 0 0 2px var(--bg-card), 0 0 12px rgba(var(--accent-green-rgb), 0.55);
+  z-index: 3;
+}
+
+/* заголовки секций статистики: фирменный градиентный штрих */
+#screen-stats .section-card h3 { position: relative; display: inline-block; padding-bottom: 7px; }
+#screen-stats .section-card h3::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 34px;
+  height: 3px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-blue));
+}
+
+/* полосы направлений: медленный амбиентный шиммер (глобальный
+   prefers-reduced-motion глушит его через animation-duration) */
+.ds-fill {
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-blue), var(--accent-primary));
+  background-size: 200% 100%;
+  animation: dsShimmer 3.6s linear infinite;
+}
+@keyframes dsShimmer {
+  from { background-position: 0% 0; }
+  to { background-position: 200% 0; }
 }

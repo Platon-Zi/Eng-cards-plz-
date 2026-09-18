@@ -79,6 +79,52 @@ ok(!!doc.getElementById('theme-picker-dot'), 'theme dot swatch exists');
 const titlebar = doc.querySelector('.window-titlebar');
 ok(!!titlebar && titlebar.contains(tpBtn) && titlebar.querySelector('.app-brand').compareDocumentPosition(tpBtn) & 4,
   'theme button sits top-left inside .window-titlebar after the brand');
+/* BRANDING v2: name is Vocaba; the three meta labels + author live in the
+   titlebar (promoted out of the old sidebar header, which is now gone). */
+ok(titlebar && /Vocaba/.test((titlebar.querySelector('.app-name') || {}).textContent || ''),
+  'brand renamed to Vocaba');
+ok(titlebar && titlebar.querySelector('.titlebar-meta .offline-badge')
+  && !titlebar.querySelector('#streak-badge') && !titlebar.querySelector('.tb-vocab'),
+  'quiet titlebar: offline mark in theme colour, streak & Vocabulary removed');
+ok(!doc.getElementById('dash-streak') && !!doc.getElementById('stats-streak'),
+  'streak pill gone from titlebar, Day streak KPI lives on Statistics');
+{
+  const dash = doc.getElementById('screen-dashboard');
+  const kg = dash.querySelector('#knowledge-panel'), mg = dash.querySelector('.metrics-grid');
+  ok(!!kg && !!mg && (kg.compareDocumentPosition(mg) & 4) > 0,
+    'dashboard order: hero → Knowledge Groups → metrics');
+  ok(!dash.querySelector('.info-tag'), 'INTERVALS tech-tag removed from dashboard');
+}
+ok(titlebar && !!titlebar.querySelector('.app-author .aa-mail')
+  && titlebar.querySelector('.app-author .aa-mail').textContent.trim() === 'zinkovplaton@gmail.com',
+  'subtle author handle in titlebar');
+ok(titlebar && titlebar.querySelector('.contact-pop .cp-name')
+  && /\+972 584010710/.test(titlebar.querySelector('.contact-pop').textContent)
+  && /Platon Zinkov/.test(titlebar.querySelector('.contact-pop').textContent)
+  && /zinkovplaton@gmail\.com/.test(titlebar.querySelector('.contact-pop').textContent),
+  'contact popup carries name + phone + email');
+ok(!!doc.querySelector('link[rel="icon"][href="icon.png"]'), 'favicon link present (browser tab chip)');
+
+/* STATS v2: every section explains itself; outcomes donut + direction bars exist */
+{
+  const st = doc.getElementById('screen-stats');
+  ok(!!st && st.querySelectorAll('.stat-explain').length >= 6,
+    'every stats section carries a plain-language caption (' + (st ? st.querySelectorAll('.stat-explain').length : 0) + ' found)');
+  ok(!!doc.getElementById('chart-outcomes') && !!doc.getElementById('chart-outcomes-empty'),
+    'answer-outcomes donut canvas + empty state exist');
+  ok(['ds-en-ru', 'ds-ru-en', 'ds-en-ru-pct', 'ds-ru-en-pct', 'ds-en-ru-tag', 'ds-ru-en-tag']
+      .every(id => !!doc.getElementById(id)), 'direction-strength bars exist');
+}
+
+/* STATS v3: ribbon, highlights, chart tooltip */
+{
+  ok(!!doc.getElementById('mastery-ribbon') && !!doc.getElementById('ribbon-legend'),
+    'Journey-to-Mastery ribbon + legend containers exist');
+  ok(['hl-total-answers', 'hl-best-day', 'hl-best-streak', 'hl-perfect-days']
+      .every(id => !!doc.getElementById(id)), 'Personal Highlights value slots exist');
+  ok(!!doc.getElementById('chart-tooltip'), 'shared chart tooltip is static markup (app.js id contract)');
+}
+ok(!doc.querySelector('.sidebar .nav-header'), 'old sidebar nav-header removed (menu rides higher)');
 /* inline anti-FOUC script is in <head> and mentions the storage key */
 const headScripts = [...doc.querySelectorAll('head script:not([src])')].map(s => s.textContent).join('\n');
 ok(headScripts.includes('eng_cards_theme') && headScripts.includes('data-theme'), 'anti-FOUC inline script in <head> uses eng_cards_theme');

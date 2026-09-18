@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leitner English — Offline Flashcards</title>
+  <link rel="icon" type="image/png" href="icon.png">
+  <title>Vocaba — Offline Flashcards</title>
   <script>
     /* Anti-FOUC shim: apply the stored colour theme to <html> before first paint.
        Key: eng_cards_theme · values: beta | midnight | light | sandstone · owner: theme.js.
@@ -27,7 +28,7 @@
   <div class="window-titlebar">
     <div class="app-brand">
       <span class="app-icon">📦</span>
-      <span class="app-name">Leitner English</span>
+      <span class="app-name">Vocaba</span>
     </div>
     <!-- Theme mini-menu (top-left, next to the brand). The button is static
          markup so it exists before JS runs; theme.js builds the menu items,
@@ -44,20 +45,25 @@
         <!-- items injected by theme.js: role="menuitemradio" + aria-checked -->
       </div>
     </div>
+    <!-- Quiet meta line: offline mark only (day streak moved out of the bar). -->
+    <div class="titlebar-meta">
+      <span class="offline-badge">⚡ 100% Offline</span>
+    </div>
+    <span class="app-author" tabindex="0" aria-describedby="contact-pop">
+        <span class="aa-mail">zinkovplaton@gmail.com</span>
+        <span class="contact-pop" id="contact-pop" role="tooltip" aria-label="Contact details">
+          <span class="cp-card">
+            <span class="cp-name">Platon Zinkov</span>
+            <span class="cp-line">📞 +972 584010710</span>
+            <span class="cp-line">✉️ zinkovplaton@gmail.com</span>
+          </span>
+        </span>
+      </span>
   </div>
 
   <div class="app-container">
     <!-- Navigation Sidebar -->
     <aside class="sidebar">
-      <div class="nav-header">
-        <h2>Vocabulary</h2>
-        <span class="offline-badge">⚡ 100% Offline</span>
-        <div class="streak-badge" id="streak-badge" style="margin-top: 12px; width: fit-content;">
-          <span class="streak-icon">🔥</span>
-          <span class="streak-count" id="dash-streak">0</span>
-          <span class="streak-label">day streak</span>
-        </div>
-      </div>
       <nav class="nav-menu">
         <button class="nav-btn active" data-screen="dashboard">
           <span class="icon">🏠</span> Dashboard
@@ -115,38 +121,6 @@
           </div>
         </div>
 
-        <!-- Quick Metrics (Dashboard KPI) -->
-        <div class="metrics-grid">
-          <div class="metric-card">
-            <div class="metric-icon blue">🏦</div>
-            <div class="metric-info">
-              <div class="metric-value" id="dash-total">0</div>
-              <div class="metric-label">In the Bank</div>
-            </div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-icon amber">⏰</div>
-            <div class="metric-info">
-              <div class="metric-value" id="dash-due">0</div>
-              <div class="metric-label">Due today</div>
-            </div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-icon green">🏆</div>
-            <div class="metric-info">
-              <div class="metric-value" id="dash-learned">0</div>
-              <div class="metric-label">MASTERED (30 days)</div>
-            </div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-icon purple">🎯</div>
-            <div class="metric-info">
-              <div class="metric-value" id="dash-accuracy">0%</div>
-              <div class="metric-label">Accuracy</div>
-            </div>
-          </div>
-        </div>
-
         <!-- ============================================================
              KNOWLEDGE GROUPS PANEL (contract §5.3)
              Replaces the retired Leitner boxes visualizer entirely.
@@ -161,7 +135,6 @@
         <div class="section-card kg-section" id="knowledge-panel">
           <div class="section-header">
             <h3>📈 Knowledge Groups</h3>
-            <span class="info-tag">INTERVALS = [0, 1, 2, 4, 7, 14, 30] days · L6 ceiling</span>
           </div>
 
           <div class="kg-container" id="knowledge-rows">
@@ -262,6 +235,38 @@
             </div>
           </div>
         </div>
+        <!-- Quick Metrics (Dashboard KPI) -->
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-icon blue">🏦</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-total">0</div>
+              <div class="metric-label">In the Bank</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon amber">⏰</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-due">0</div>
+              <div class="metric-label">Due today</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon green">🏆</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-learned">0</div>
+              <div class="metric-label">MASTERED (30 days)</div>
+            </div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-icon purple">🎯</div>
+            <div class="metric-info">
+              <div class="metric-value" id="dash-accuracy">0%</div>
+              <div class="metric-label">Accuracy</div>
+            </div>
+          </div>
+        </div>
+
       </section>
 
       <section id="screen-training" class="screen">
@@ -1731,7 +1736,7 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
         <header class="page-header">
           <div>
             <h1>📊 Statistics &amp; Progress</h1>
-            <p class="subtitle">14-day activity, knowledge groups and the review heatmap</p>
+            <p class="subtitle">14-day activity, knowledge groups, answer outcomes and the review heatmap</p>
           </div>
           <button class="btn btn-secondary btn-back-dash">
             ← Back to Dashboard
@@ -1776,11 +1781,61 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
           </div>
         </div>
 
+        <!-- Journey to Mastery: сегментная лента всей базы (рендерит datacare.js).
+             Сегмент = <button>: hover-свечение из CSS, клик → openGroupInDictionary. -->
+        <div class="section-card margin-top mastery-card">
+          <div class="section-header">
+            <h3>🧗 Journey to Mastery</h3>
+            <span class="info-tag">hover a segment · click to open the group</span>
+          </div>
+          <p class="stat-explain">Your whole vocabulary as one ribbon: from the untouched <b>Bank</b> to <b>MASTERED</b>. Hover a segment for the exact count, click it to practise that group in the Dictionary.</p>
+          <div class="mastery-ribbon" id="mastery-ribbon" role="group" aria-label="Word distribution across knowledge groups — each segment opens its group in the Dictionary"></div>
+          <div class="ribbon-legend" id="ribbon-legend"></div>
+        </div>
+
+        <!-- Personal Highlights (значения заполняет datacare.js) -->
+        <div class="section-card margin-top">
+          <div class="section-header">
+            <h3>🏅 Personal Highlights</h3>
+          </div>
+          <div class="highlights-row">
+            <div class="hl-item">
+              <span class="hl-icon">📚</span>
+              <div class="hl-data">
+                <span class="hl-value" id="hl-total-answers">—</span>
+                <span class="hl-label">answers graded, all time</span>
+              </div>
+            </div>
+            <div class="hl-item">
+              <span class="hl-icon">⚡</span>
+              <div class="hl-data">
+                <span class="hl-value" id="hl-best-day">—</span>
+                <span class="hl-label">best single day (reviews)</span>
+              </div>
+            </div>
+            <div class="hl-item">
+              <span class="hl-icon">🔥</span>
+              <div class="hl-data">
+                <span class="hl-value" id="hl-best-streak">—</span>
+                <span class="hl-label">longest streak seen in history</span>
+              </div>
+            </div>
+            <div class="hl-item">
+              <span class="hl-icon">🎯</span>
+              <div class="hl-data">
+                <span class="hl-value" id="hl-perfect-days">—</span>
+                <span class="hl-label">days without a single «Again»</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="metrics-grid">
           <div class="section-card">
             <div class="section-header">
               <h3>📈 14-Day Activity</h3>
             </div>
+            <p class="stat-explain">Each bar is one day — how many answers you graded. The number above a bar is the exact count; a missing bar means you skipped that day.</p>
             <div style="position: relative; height: 260px;">
               <canvas id="chart-activity" width="360" height="260" style="width:100%; height:100%;"></canvas>
             </div>
@@ -1790,11 +1845,48 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
             <div class="section-header">
               <h3>🍩 Knowledge Group Distribution</h3>
             </div>
+            <p class="stat-explain">Where every word lives right now: <b>Bank</b> = never studied, then the memory ladder <b>NEW → LEARNING → FAMILIAR → CONFIDENT → MASTERED</b>. The number in the centre is your total.</p>
             <!-- #chart-stages doughnut expectation (§5.5): exactly six slices with the
                  legend ['Bank','NEW','LEARNING','FAMILIAR','CONFIDENT','MASTERED'],
                  one colour per bucket, counts from SRS.summarize().groups. -->
             <div style="position: relative; height: 260px;">
               <canvas id="chart-stages" width="360" height="260" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Answer outcomes + direction strength (rendered by datacare.js) -->
+        <div class="metrics-grid">
+          <div class="section-card">
+            <div class="section-header">
+              <h3>🎯 Answer Outcomes</h3>
+            </div>
+            <p class="stat-explain">Every graded answer since day one: <b style="color: var(--accent-green)">Easy</b> = recalled instantly, <b style="color: var(--accent-amber)">Hard</b> = remembered with effort, <b style="color: var(--accent-red)">Again</b> = failed, sent back to the Bank.</p>
+            <span class="stat-empty" id="chart-outcomes-empty" hidden>No Easy/Hard/Again breakdown yet — it fills as you practise.</span>
+            <div style="position: relative; height: 260px;">
+              <canvas id="chart-outcomes" width="360" height="260" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+
+          <div class="section-card">
+            <div class="section-header">
+              <h3>⚖️ Direction Strength</h3>
+            </div>
+            <p class="stat-explain">Share of answers you remembered in each direction (Hard counts as remembered). The shorter bar is your weaker side — the <b>weaker</b> tag marks it.</p>
+            <div class="dir-strength">
+              <div class="ds-row">
+                <span class="ds-name">🇬🇧 ENG → RUS</span>
+                <div class="ds-track"><div class="ds-fill" id="ds-en-ru"></div></div>
+                <span class="ds-pct" id="ds-en-ru-pct">—</span>
+                <span class="ds-tag" id="ds-en-ru-tag"></span>
+              </div>
+              <div class="ds-row">
+                <span class="ds-name">🇷🇺 RUS → ENG</span>
+                <div class="ds-track"><div class="ds-fill" id="ds-ru-en"></div></div>
+                <span class="ds-pct" id="ds-ru-en-pct">—</span>
+                <span class="ds-tag" id="ds-ru-en-tag"></span>
+              </div>
+              <p class="stat-explain ds-note">Counts every graded answer in your whole history — the more you practice, the more honest these bars get.</p>
             </div>
           </div>
         </div>
@@ -1826,6 +1918,7 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
             <h3>🟩 Activity Heatmap (17 weeks)</h3>
             <span class="info-tag">Total words in base: <b id="stat-total-added">0</b></span>
           </div>
+          <p class="stat-explain">One square per day for the last ~4 months — the deeper the colour, the more reviews that day. Grey = nothing graded.</p>
           <div class="heatmap-wrapper">
             <div class="heatmap-grid" id="heatmap-grid"></div>
             <div class="heatmap-legend">
@@ -1844,6 +1937,7 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
           <div class="section-header">
             <h3>🔴 Hard Words (top 10 by resets)</h3>
           </div>
+          <p class="stat-explain">Words that kept falling back to the Bank — your personal drill list. Copy them into the Spelling Studio input to train by ear.</p>
           <table class="data-table">
             <thead>
               <tr>
@@ -2016,6 +2110,9 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
 
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container" role="status" aria-live="polite"></div>
+
+  <!-- Общий тултип canvas-графиков (показывается из app.js на hover сегмента) -->
+  <div id="chart-tooltip" class="chart-tooltip" aria-hidden="true" hidden></div>
 
   <script src="data/leitner_data.js"></script>
   <script src="srs.js"></script>
