@@ -2675,11 +2675,11 @@ function setupEventHandlers() {
         e.stopPropagation();
         if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
         submitAnswer(SRS.ANSWERS.AGAIN);   // 1 / ← / A / Ф = Забыл 🔴
-      } else if (key === '2') {
+      } else if (key === '2' || key === 'arrowup') {
         e.preventDefault();
         e.stopPropagation();
         if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
-        submitAnswer(SRS.ANSWERS.HARD);    // 2 = Сложно 🟠 (уровень заморожен)
+        submitAnswer(SRS.ANSWERS.HARD);    // 2 / ↑ = Сложно 🟠 (уровень заморожен)
       } else if (key === '3' || key === 'd' || key === 'в' || key === 'arrowright') {
         e.preventDefault();
         e.stopPropagation();
@@ -2692,11 +2692,13 @@ function setupEventHandlers() {
         e.stopPropagation();
         if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
         undoPreviousCard(); // Down Arrow (↓) = Undo & Return to previous card
-      } else if (key === 'arrowup' || key === 'w' || key === 'ц') {
+      } else if (key === 'w' || key === 'ц') {
         e.preventDefault();
         e.stopPropagation();
         if (activeEl && activeEl.blur && activeEl !== document.body) activeEl.blur();
-        skipCardToEnd(); // Up Arrow (↑) / W / Ц = Skip card to end of session queue
+        // W / Ц = Skip card to end of session queue. ↑ освобождена: по запросу
+        // пользователя (19.09) стрелки оценивают — ← Забыл, ↑ Сложно, → Легко.
+        skipCardToEnd();
       }
     }
   }, { capture: true });

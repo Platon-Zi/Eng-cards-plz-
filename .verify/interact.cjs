@@ -516,7 +516,7 @@ const dd = (n) => SRS.addDays(T, n);
     });
 
     /* ── 11. Keyboard contract ─────────────────────────────────────────── */
-    await runner.section('11. keyboard: 1/← again · 2 hard · 3/→ easy · 4 nothing · 0 bank · Space flip · Escape back', async ({ t }) => {
+    await runner.section('11. keyboard: 1/← again · 2/↑ hard · 3/→ easy · 4 nothing · 0 bank · W skip · Space flip · Escape back', async ({ t }) => {
       const d = env.document;
       // Space flips the card
       const flash = d.getElementById('flashcard');
@@ -550,6 +550,14 @@ const dd = (n) => SRS.addDays(T, n);
       await gradeVia(env, t, 'hard', () => env.key('2'), "key '2' → hard");
       await gradeVia(env, t, 'easy', () => env.key('3'), "key '3' → easy");
       await gradeVia(env, t, 'easy', () => env.key('ArrowRight'), "key 'ArrowRight' → easy");
+      await gradeVia(env, t, 'hard', () => env.key('ArrowUp'), "key 'ArrowUp' → hard (↑ reassigned from skip)");
+      // W по-прежнему отправляет в конец очереди без оценки (↑ больше не skip)
+      const wItem = await currentItem(env);
+      env.key('w');
+      await env.tick(30);
+      t("key 'w' skips to end without grading", !isGraded(env, wItem.key)
+        && env.evalIn(`currentTrainingQueue[currentTrainingQueue.length - 1].key`) === wItem.key,
+        `graded=${isGraded(env, wItem.key)}`);
       void r1;
 
       // '0' → return the word to the Bank

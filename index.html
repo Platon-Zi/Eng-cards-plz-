@@ -278,8 +278,8 @@
             <button class="btn btn-secondary" id="btn-undo-card" title="Undo / Return to previous word (Down Arrow / ↓)">
               ↩ Previous (↓)
             </button>
-            <button class="btn btn-secondary" id="btn-skip-card" title="Skip to end of queue (Up Arrow / ↑)">
-              ⏭️ Skip to End (↑)
+            <button class="btn btn-secondary" id="btn-skip-card" title="Skip to end of queue (W / Ц)">
+              ⏭️ Skip to End (W)
             </button>
           </div>
           <div class="training-progress-info">
@@ -366,13 +366,13 @@
                  card stay wired in app.js (left = 🔴 Forgot, right = 🟢 Easy). -->
             <div class="answer-controls no-flip">
               <button class="btn-answer btn-answer-again" id="btn-answer-again" title="Forgot [1 / ← / A]">🔴 Forgot<kbd>1 / ←</kbd></button>
-              <button class="btn-answer btn-answer-hard"  id="btn-answer-hard"  title="Hard [2]">🟠 Hard<kbd>2</kbd></button>
+              <button class="btn-answer btn-answer-hard"  id="btn-answer-hard"  title="Hard [2 / ↑]">🟠 Hard<kbd>2 / ↑</kbd></button>
               <button class="btn-answer btn-answer-easy"  id="btn-answer-easy"  title="Easy [3 / → / D]">🟢 Easy<kbd>3 / →</kbd></button>
             </div>
 
             <!-- Shortcut tip line, key map per §5.7 -->
             <div class="shortcut-tip-box">
-              <span>Space: flip card · Enter: 🔊 word · Shift+Enter: 💡 hint → 🔊 example · 1 / ← / A: 🔴 Forgot · 2: 🟠 Hard · 3 / → / D: 🟢 Easy · ↓: undo · ↑ / W: to end of queue</span>
+              <span>Space: flip card · Enter: 🔊 word · Shift+Enter: 💡 hint → 🔊 example · 1 / ← / A: 🔴 Forgot · 2 / ↑: 🟠 Hard · 3 / → / D: 🟢 Easy · ↓: undo · W: to end of queue</span>
             </div>
 
           </div>
@@ -854,10 +854,10 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
                     <tr><td><kbd class="guide-kbd">Enter</kbd></td><td>🔊 <strong>Speak word</strong></td><td>Pronounces the current English word naturally.</td></tr>
                     <tr><td><kbd class="guide-kbd">Shift</kbd> + <kbd class="guide-kbd">Enter</kbd></td><td>💡 <strong>Hint → 🔊 example</strong></td><td>First press opens the example sentence, the next press reads it aloud.</td></tr>
                     <tr><td><kbd class="guide-kbd">1</kbd> / <kbd class="guide-kbd">←</kbd> / <kbd class="guide-kbd">A</kbd> / <kbd class="guide-kbd">Ф</kbd></td><td>🔴 <strong>Forgot</strong></td><td>Resets the answered vector: L≤3 → L1, L≥4 → L2. Counts as a mistake.</td></tr>
-                    <tr><td><kbd class="guide-kbd">2</kbd></td><td>🟠 <strong>Hard</strong></td><td>Recalled with effort — the level freezes and the interval stays the same. Scored as correct.</td></tr>
+                    <tr><td><kbd class="guide-kbd">2</kbd> / <kbd class="guide-kbd">↑</kbd></td><td>🟠 <strong>Hard</strong></td><td>Recalled with effort — the level freezes and the interval stays the same. Scored as correct.</td></tr>
                     <tr><td><kbd class="guide-kbd">3</kbd> / <kbd class="guide-kbd">→</kbd> / <kbd class="guide-kbd">D</kbd> / <kbd class="guide-kbd">В</kbd></td><td>🟢 <strong>Easy</strong></td><td>Effortless — the vector steps one level up along <code>INTERVALS</code>.</td></tr>
                     <tr><td><kbd class="guide-kbd">↓</kbd></td><td>↩ <strong>Undo</strong></td><td>Returns the previous card and restores its state.</td></tr>
-                    <tr><td><kbd class="guide-kbd">↑</kbd> / <kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td><td>⏭️ <strong>To end of queue</strong></td><td>Defers the current entry to the very end of the session.</td></tr>
+                    <tr><td><kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td><td>⏭️ <strong>To end of queue</strong></td><td>Defers the current entry to the very end of the session.</td></tr>
                     <tr><td><kbd class="guide-kbd">Escape</kbd></td><td>🚪 <strong>Back / Exit</strong></td><td>Closes an open modal; during training returns to the screen you started from; from any other screen (even while typing) returns to the Dashboard.</td></tr>
                     <tr><td><kbd class="guide-kbd">0</kbd></td><td>🏦 <strong>Return to Bank</strong></td><td>The current card goes back to the Bank (out of the rotation). Undoes with <kbd class="guide-kbd">↓</kbd>. The digits <kbd class="guide-kbd">1</kbd>–<kbd class="guide-kbd">5</kbd> do nothing: manual relocation is gone — the schedule belongs to the algorithm.</td></tr>
                   </tbody>
@@ -1175,7 +1175,7 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
                       <td>Сбрасывает отвеченный вектор: L≤3 → L1, L≥4 → L2. Засчитывается как ошибка</td>
                     </tr>
                     <tr>
-                      <td><kbd class="guide-kbd">2</kbd></td>
+                      <td><kbd class="guide-kbd">2</kbd> / <kbd class="guide-kbd">↑</kbd></td>
                       <td>🟠 <strong>Сложно</strong></td>
                       <td>Вспомнили с усилием — уровень заморожен, интервал тот же. Считается верным ответом</td>
                     </tr>
@@ -1190,7 +1190,7 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
                       <td>Возвращает предыдущую карточку и восстанавливает её состояние</td>
                     </tr>
                     <tr>
-                      <td><kbd class="guide-kbd">↑</kbd> / <kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td>
+                      <td><kbd class="guide-kbd">W</kbd> / <kbd class="guide-kbd">Ц</kbd></td>
                       <td>⏭️ <strong>В конец очереди</strong></td>
                       <td>Откладывает текущую запись на самый конец сессии</td>
                     </tr>
