@@ -4104,8 +4104,16 @@ input, textarea,
    Только токены темы (css_check запрещает литеральные hex).
    ============================================================ */
 .daily-mission { padding: 9px 14px; }
-.dm-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.dm-heading { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+/* Симметрия (фидбек 20.09): сетка 1fr auto 1fr — заголовок слева, кольца
+   строго по центру, цель справа; среднее центрировано независимо от ширины
+   крайних блоков. На узком окне всё стекается в центрированную колонку. */
+.dm-strip { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px 12px; }
+.dm-heading { display: flex; align-items: baseline; gap: 8px; justify-self: start; }
+.dm-tiles { display: flex; align-items: center; gap: 10px; justify-self: center; }
+@media (max-width: 700px) {
+  .dm-strip { grid-template-columns: 1fr; justify-items: center; }
+  .dm-heading, .dm-tiles, .dm-goal-row { justify-self: center; }
+}
 .dm-heading h3 { font-size: 14px; margin: 0; }
 .dm-date { color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .dm-tile {
@@ -4134,7 +4142,7 @@ input, textarea,
 .daily-mission.dm-review-done .dm-label-review { color: rgba(var(--accent-green-rgb), 1); }
 .daily-mission.dm-goal-reached .dm-tile-learn { border-color: rgba(var(--accent-green-rgb), 0.5); }
 .daily-mission.dm-goal-reached .dm-label-learn { color: rgba(var(--accent-green-rgb), 1); }
-.dm-goal-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
+.dm-goal-row { display: flex; align-items: center; gap: 6px; justify-self: end; font-size: 11.5px; color: var(--text-muted); }
 .dm-goal-row label { font-weight: 700; }
 #dm-goal-input {
   width: 54px; padding: 3px 6px; border-radius: 8px;
