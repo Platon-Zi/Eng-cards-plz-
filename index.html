@@ -1891,6 +1891,17 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
           </div>
         </div>
 
+          <div class="section-card">
+            <div class="section-header">
+              <h3>🔮 Upcoming Load · next 14 days</h3>
+            </div>
+            <p class="stat-explain">How many reviews mature on each day — both directions of every active word. The red “now” bar is everything due today or overdue: click it to start practising. Since same-day and early “Easy” no longer inflate levels, this forecast can be trusted.</p>
+            <span class="stat-empty" id="chart-forecast-empty" hidden>Nothing scheduled yet — learn a few words and the forecast will appear.</span>
+            <div style="position: relative; height: 260px;">
+              <canvas id="chart-forecast" width="360" height="260" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+
         <!-- Per-direction breakdown: two independent vectors reported separately.
              app.js fills #stats-dir-en-ru / #stats-dir-ru-en with a short line like
              «средний L2.8 · 41 к сроку · 12 просрочено» for the en_ru / ru_en vector. -->

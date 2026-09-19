@@ -151,6 +151,46 @@ const $ = sel => d.querySelector(sel);
   rec('клик по срезу переживает перерисовки (регрессия ревью)',
     clickSurvives === 'ok' || clickSurvives === 'skip', clickSurvives);
 
+  // ── 10. STATS v4: прогноз Upcoming Load (детерминированно: фиксированный «сегодня») ──
+  // Перехватываем srsToday и дёргаем themechange (datacare слушает его на window) —
+  // прогноз перерисовывается на фиксированной дате, независимой от wall-clock.
+  w.eval(`srsToday = function () { return '2026-09-19'; }; window.dispatchEvent(new CustomEvent('themechange'));`);
+  const FC_TODAY = '2026-09-19';
+  let fcSum = 0, fcNow = 0;
+  (w.LEITNER_DATA.cards || []).forEach(c => {
+    if (!c || String(c.status || '').toUpperCase() !== 'ACTIVE') return;
+    ['en_ru', 'ru_en'].forEach(dir => {
+      const due = c['next_review_' + dir];
+      if (typeof due !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(due)) return;
+      const delta = Math.round((Date.parse(due) - Date.parse(FC_TODAY)) / 86400000);
+      if (delta <= 0) { fcSum++; fcNow++; }
+      else if (delta <= 13) fcSum++;
+    });
+  });
+  const fcCanvas = $('#chart-forecast'), fcEmpty = $('#chart-forecast-empty');
+  rec('прогноз: canvas и empty-state в разметке', !!fcCanvas && !!fcEmpty);
+  rec('прогноз: empty-state согласован с расписанием', !!fcEmpty && fcEmpty.hidden === (fcSum > 0),
+    `sum=${fcSum}, hidden=${fcEmpty && fcEmpty.hidden}`);
+  rec('прогноз: сид-база даёт ненулевое расписание (иначе проверка деградировала)', fcSum > 0, String(fcSum));
+  if (fcSum > 0 && fcCanvas) {
+    rec('прогноз: _chart построен (bar)', !!(fcCanvas._chart && fcCanvas._chart.kind === 'bar'));
+    rec('прогноз: первая колонка — "now" с числом просроченных',
+      !!(fcCanvas._chart && typeof fcCanvas._chart.tipFor === 'function'
+        && /now/i.test(fcCanvas._chart.tipFor(0))
+        && fcCanvas._chart.tipFor(0).includes(String(fcNow))),
+      fcCanvas._chart && String(fcCanvas._chart.tipFor && fcCanvas._chart.tipFor(0)));
+    if (fcNow > 0) {
+      rec('прогноз: клик по "now" запускает Practice (bound)', typeof fcCanvas._chart.click === 'function');
+      const fcClickSurvives = w.eval(`(function(){
+        var c = document.getElementById('chart-forecast');
+        if (!c || !c._chart || typeof c._chart.redraw !== 'function') return 'skip';
+        c._chart.redraw(0);
+        return typeof c._chart.click === 'function' ? 'ok' : 'lost';
+      })()`);
+      rec('прогноз: click переживает hover-redraw', fcClickSurvives === 'ok' || fcClickSurvives === 'skip', fcClickSurvives);
+    }
+  }
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

@@ -307,10 +307,65 @@
     setText('hl-perfect-days', perfect > 0 ? String(perfect) : '—');
   }
 
+  /* ============ STATS v4: UPCOMING LOAD — прогноз повторений на 14 дней ============
+     Сколько записей (слово × направление) созревает в каждый из ближайших дней.
+     Красная колонка «now» — всё, что должно сегодня/просрочено; клик по ней
+     запускает обычную Practice-сессию. После введения честных guard'ов
+     (same-day + early) этому прогнозу можно доверять. */
+  function forecastAgg() {
+    var cards = (typeof appState !== 'undefined' && appState && Object.prototype.toString.call(appState.cards) === '[object Array]')
+      ? appState.cards
+      : ((window.LEITNER_DATA && LEITNER_DATA.cards) || []);
+    var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
+    var buckets = [];
+    for (var i = 0; i < 14; i++) buckets.push(0);
+    cards.forEach(function (c) {
+      if (!c || String(c.status || '').toUpperCase() !== 'ACTIVE') return;
+      ['en_ru', 'ru_en'].forEach(function (dir) {
+        var due = c['next_review_' + dir];
+        if (typeof due !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(due)) return;
+        var delta = Math.round((Date.parse(due) - Date.parse(today)) / 86400000);
+        if (delta <= 0) buckets[0]++;
+        else if (delta <= 13) buckets[delta]++;
+      });
+    });
+    return { buckets: buckets, today: today };
+  }
+
+  function forecastLabels(today) {
+    var labels = ['now'];
+    for (var i = 1; i < 14; i++) {
+      var iso = new Date(Date.parse(today) + i * 86400000).toISOString().slice(0, 10);
+      labels.push(fmtDay(iso));
+    }
+    return labels;
+  }
+
+  function forecastColor(idx) {
+    if (idx === 0) return outcomeColor('--accent-red-rgb', '239, 68, 68');
+    if (idx <= 3) return outcomeColor('--accent-amber-rgb', '245, 158, 11');
+    return outcomeColor('--accent-blue-rgb', '99, 102, 241');
+  }
+
+  function renderForecast() {
+    var agg = forecastAgg();
+    var sum = agg.buckets.reduce(function (a, b) { return a + b; }, 0);
+    var emptyEl = document.getElementById('chart-forecast-empty');
+    var canvas = document.getElementById('chart-forecast');
+    if (emptyEl) emptyEl.hidden = sum > 0;
+    if (!canvas || sum === 0 || typeof drawFallbackBarChart !== 'function') return;
+    var colors = agg.buckets.map(function (v, i) { return forecastColor(i); });
+    drawFallbackBarChart(canvas, forecastLabels(agg.today), agg.buckets, -1, colors);
+    if (agg.buckets[0] > 0 && typeof startTrainingSession === 'function') {
+      canvas._chart.click = function (i) { if (i === 0) startTrainingSession('system'); };
+    }
+  }
+
   function renderStatsExtras() {
     try { renderOutcomes(); } catch (e) {}
     try { renderMasteryRibbon(); } catch (e) {}
     try { renderHighlights(); } catch (e) {}
+    try { renderForecast(); } catch (e) {}
   }
 
   function watchStatsActivation() {

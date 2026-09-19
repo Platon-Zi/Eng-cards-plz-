@@ -1240,7 +1240,7 @@ function bindChartHover(canvas) {
   });
 }
 
-function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
+function drawFallbackBarChart(canvas, labels, data, hoverIdx, colors) {
   if (!canvas) return;
   hoverIdx = typeof hoverIdx === 'number' ? hoverIdx : -1;
   const ctx = canvas.getContext('2d');
@@ -1297,9 +1297,12 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
     const y = paddingTop + chartH - barH;
 
     const hovered = idx === hoverIdx;
+    // Опциональная пер-бар палитра (stats v4, прогноз нагрузки): обратно
+    // совместимо — без colors рисуется единым акцентом, как раньше.
+    const ownColor = (Array.isArray(colors) && typeof colors[idx] === 'string' && colors[idx]) ? colors[idx] : null;
     ctx.save();
-    if (hovered) { ctx.shadowColor = fbAccent; ctx.shadowBlur = 16; }
-    ctx.fillStyle = val > 0 ? (hovered ? fbAccentHi : fbAccent) : fbEmpty;
+    if (hovered) { ctx.shadowColor = ownColor || fbAccent; ctx.shadowBlur = 16; }
+    ctx.fillStyle = val > 0 ? (hovered ? (ownColor || fbAccentHi) : (ownColor || fbAccent)) : fbEmpty;
     ctx.beginPath();
     if (ctx.roundRect) {
       ctx.roundRect(x, y, barWidth, barH, [4, 4, 0, 0]);
@@ -1335,7 +1338,7 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx) {
       return (i >= 0 && i < data.length) ? i : -1;
     },
     tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} ${data[i] === 1 ? 'review' : 'reviews'}`,
-    redraw: (h) => drawFallbackBarChart(canvas, labels, data, h)
+    redraw: (h) => drawFallbackBarChart(canvas, labels, data, h, colors)
   };
   if (prevChart && typeof prevChart.click === 'function') canvas._chart.click = prevChart.click;
   bindChartHover(canvas);
@@ -1683,6 +1686,25 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
     const c = it && cardById(it.cardId);
     if (c && SRS.isBank(c)) it.bankAtStart = true;
   });
+
+  // Прозрачность guard'ов (19.09): cram-режимы показывают слова ДО срока —
+  // честно говорим, сколько записей ранние: это чистая практика без роста
+  // уровня, чтобы hold-тосты потом не выглядели сюрпризом.
+  const CRAM_MODES = ['single_word', 'batch', 'pos', 'custom_group', 'group', 'mixed', 'cram', 'eng-rus', 'rus-eng'];
+  if (CRAM_MODES.indexOf(mode) !== -1 && items.length) {
+    let earlyCount = 0;
+    items.forEach(it => {
+      const c = it && cardById(it.cardId);
+      if (!c || SRS.isBank(c) || it.bankAtStart) return;
+      const due = c['next_review_' + SRS.normalizeDir(it.direction)];
+      if (typeof due === 'string' && due > today) earlyCount++;
+    });
+    if (earlyCount === items.length) {
+      showToast(`🎯 All ${earlyCount} entries are early reviews — pure practice, no level-ups until words come due.`, 'info');
+    } else if (earlyCount > 0) {
+      showToast(`🎯 ${earlyCount} of ${items.length} entries are early — only due ones can level up today.`, 'info');
+    }
+  }
 
   if (!items.length) {
     if (mode === 'system' || mode === 'daily' || mode === 'practice') {
@@ -3026,53 +3048,115 @@ function addSingleCard(word, translation, example, phonetic = '', example_transl
   const finalBatchName = batch_name || 'Single Additions';
   const pos = part_of_speech || inferPartOfSpeech({ word, translation });
 
-  appState.cards.push({
+  // Аудит L3: карточка собирается ядерным скелетоном — чистая v2-форма
+  // (status: 'BANK', нулевые уровни, null-даты) без deprecated v1-полей
+  // (box/eng_to_rus/rus_to_eng/last_tested_*/next_review_date), которые раньше
+  // мусорили сохранённый JSON до первой нормализации. Семантика очередей та же:
+  // isBank(card) = status !== 'ACTIVE', отсутствие статуса и 'BANK' равнозначны.
+  appState.cards.push(SRS.newCardSkeleton({
     id: generateId(),
     word,
     phonetic,
     translation,
-    part_of_speech: pos,
-    partOfSpeech: pos,
-    batch_id: finalBatchId,
-    batch_name: finalBatchName,
     example,
     example_translation,
-    box: 0,
-    eng_to_rus: false,
-    rus_to_eng: false,
-    last_tested_eng: null,
-    last_tested_rus: null,
-    next_review_date: getTodayString(),
-    created_at: getTodayString(),
-    fail_count: 0
-  });
+    part_of_speech: pos,
+    batch_id: finalBatchId,
+    batch_name: finalBatchName,
+    created_at: getTodayString()
+  }));
   return 'added';
 }
 
 let parsedFileCards = [];
 
+/** Разделитель CSV/TSV/pipe-строки с учётом кавычек («a,b» внутри кавычек не рвётся). */
+function splitCsvLine(line, delim) {
+  const out = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (line[i + 1] === '"') { cur += '"'; i++; }
+        else inQ = false;
+      } else cur += ch;
+    } else if (ch === '"') {
+      inQ = true;
+    } else if (ch === delim) {
+      out.push(cur); cur = '';
+    } else cur += ch;
+  }
+  out.push(cur);
+  return out.map(s => s.trim());
+}
+
+/**
+ * Парсер файлов импорта (аудит L4):
+ * - кавычки и экранированные "" больше не ломают строки (запятые в примерах!);
+ * - опциональный хедер, включая хедер СОБСТВЕННОГО CSV-экспорта
+ *   Word,Phonetic,Translation,Example,ExampleTranslation,... — round-trip
+ *   починен (раньше Phonetic попадал в translation и данные портились);
+ * - легаси-формат без хедера сохранён: word,translation,example[,phonetic,
+ *   example_translation,pos]; pipe-строки с ≥5 колонками читаются по конвенции
+ *   textarea-импорта word|phonetic|translation|example|example_translation.
+ */
+function parseImportFile(text) {
+  const lines = String(text || '').split(/\r?\n/).filter(l => l.trim());
+  if (!lines.length) return [];
+
+  const first = lines[0];
+  let delim = ',';
+  if (!first.includes(',')) {
+    if (first.includes('\t')) delim = '\t';
+    else if (first.includes(';')) delim = ';';
+    else if (first.includes('|')) delim = '|';
+  }
+
+  const headCells = splitCsvLine(first, delim).map(s => s.replace(/^["']|["']$/g, '').trim().toLowerCase());
+  const looksHeader = headCells.includes('word') && (headCells.includes('translation') || headCells.includes('phonetic'));
+  const colOf = (...names) => {
+    for (const n of names) { const i = headCells.indexOf(n); if (i !== -1) return i; }
+    return -1;
+  };
+  const map = looksHeader ? {
+    word: colOf('word'),
+    phonetic: colOf('phonetic', 'transcription'),
+    translation: colOf('translation', 'meaning'),
+    example: colOf('example'),
+    example_translation: colOf('exampletranslation', 'example_translation', 'example_rus'),
+    part_of_speech: colOf('part_of_speech', 'partofspeech', 'pos')
+  } : null;
+
+  const out = [];
+  const body = looksHeader ? lines.slice(1) : lines;
+  body.forEach(line => {
+    let parts = splitCsvLine(line, delim);
+    if (parts.length < 2) {
+      const alt = line.includes('|') ? '|' : (line.includes('\t') ? '\t' : ';');
+      const p2 = splitCsvLine(line, alt);
+      if (p2.length > parts.length) parts = p2;
+    }
+    const get = (i) => (i >= 0 && i < parts.length) ? parts[i] : '';
+    let w, t, ex, phon, exTr, pos;
+    if (map) {
+      w = get(map.word); t = get(map.translation); ex = get(map.example);
+      phon = get(map.phonetic); exTr = get(map.example_translation); pos = get(map.part_of_speech);
+    } else if (delim === '|' && parts.length >= 5) {
+      w = parts[0]; phon = parts[1]; t = parts[2]; ex = parts[3]; exTr = parts[4];
+    } else {
+      w = get(0); t = get(1); ex = get(2); phon = get(3); exTr = get(4); pos = get(5);
+    }
+    if (w && t) out.push({ word: w, translation: t, example: ex || '', phonetic: phon || '', example_translation: exTr || '', part_of_speech: pos || '' });
+  });
+  return out;
+}
+
 function handleFileSelected(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const text = e.target.result;
-    const lines = text.split(/\r?\n/);
-    parsedFileCards = [];
-
-    lines.forEach(line => {
-      if (!line.trim()) return;
-      let parts = line.split(',');
-      if (parts.length < 2) parts = line.split(';');
-      if (parts.length < 2) parts = line.split('|');
-
-      if (parts.length >= 2) {
-        const w = parts[0].replace(/^["']|["']$/g, '').trim();
-        const t = parts[1].replace(/^["']|["']$/g, '').trim();
-        const ex = parts[2] ? parts[2].replace(/^["']|["']$/g, '').trim() : '';
-        if (w && t) {
-          parsedFileCards.push({ word: w, translation: t, example: ex });
-        }
-      }
-    });
+    parsedFileCards = parseImportFile(text);
 
     const previewArea = document.getElementById('file-preview-area');
     const tbody = document.getElementById('preview-tbody');
@@ -3095,7 +3179,7 @@ document.getElementById('btn-confirm-file-import').addEventListener('click', asy
 
   let fileAdded = 0, fileDup = 0;
   parsedFileCards.forEach(item => {
-    if (addSingleCard(item.word, item.translation, item.example) === 'added') fileAdded++;
+    if (addSingleCard(item.word, item.translation, item.example, item.phonetic || '', item.example_translation || '', item.part_of_speech || '') === 'added') fileAdded++;
     else fileDup++;
   });
 
