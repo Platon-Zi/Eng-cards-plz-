@@ -2734,11 +2734,36 @@ describe('early-review guard (Easy before the due day holds the level)', () => {
     assert.equal(r.outcome, 'reset');
   });
 
-  test('без штампа last_review (старые данные) guard не срабатывает — совместимость', () => {
-    const c = mkCard('er7', { level_en_ru: 3, next_review_en_ru: SRS.addDays(TODAY, 3) });
-    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
-    assert.equal(r.next.level, 4, 'нет истории — обычный подъём');
-    assert.equal(r.earlyReview, false);
+  test('без штампа (старые данные): созрела → подъём; срок в будущем → hold по due (аудит M1)', () => {
+    const due = mkCard('er7a', { level_en_ru: 3, next_review_en_ru: TODAY });
+    const r1 = SRS.applyAnswer(due, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r1.next.level, 4, 'созрела — обычный подъём (обратная совместимость)');
+    assert.equal(r1.earlyReview, false);
+    const future = mkCard('er7b', { level_en_ru: 3, next_review_en_ru: SRS.addDays(TODAY, 3) });
+    const r2 = SRS.applyAnswer(future, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r2.next.level, 3, 'без штампа guard судит по due: срок через 3 дня → hold');
+    assert.equal(r2.earlyReview, true);
+    assert.equal(r2.daysEarly, 3);
+    assert.ok(r2.warnings.includes('early_easy_hold'));
+  });
+
+  test('L1: setDirectionLevel штампует last_review — ранний Easy того же дня держится', () => {
+    const c = SRS.setDirectionLevel(mkBank('sdl2'), 'en_ru', 3, TODAY);
+    assert.equal(c.last_review_en_ru, TODAY, 'ручная смена уровня — событие дня');
+    assert.equal(c.last_review_ru_en, undefined, 'второй вектор не тронут');
+    const r = SRS.applyAnswer(c, 'en_ru', SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r.next.level, 3, 'same-day hold после ручного подъёма (guard не обойдён)');
+    assert.ok(r.warnings.includes('same_day_easy_hold'));
+  });
+
+  test('L7: validateCard помечает мусорный last_review — fail-open больше не молчит', () => {
+    const c = mkCard('lv7', { last_review_en_ru: 'not-a-date' });
+    const res = SRS.validateCard(c, TODAY);
+    assert.ok(res.warnings.some(w => String(w).indexOf('last_review_en_ru-invalid') === 0),
+      'warning про битый штамп: ' + res.warnings.join(','));
+    const clean = mkCard('lv7b', { last_review_en_ru: TODAY });
+    const res2 = SRS.validateCard(clean, TODAY);
+    assert.ok(!res2.warnings.some(w => String(w).includes('last_review')), 'чистый штамп без warning');
   });
 
   test('same-day повтор имеет приоритет: same_day_easy_hold, не early', () => {

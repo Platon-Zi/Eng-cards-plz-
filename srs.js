@@ -349,6 +349,9 @@
     var lv = clampLevel(level);
     c[levelKey(d)] = lv;
     c[dueKey(d)] = addDays(today, INTERVALS[lv]);
+    // Аудит L1: ручная смена уровня — тоже событие дня. Без штампа ранний EASY
+    // в тот же день обошёл бы guard (elapsed считался бы от старого ответа).
+    c[lastKey(d)] = today;
     return c;
   }
 
@@ -401,8 +404,22 @@
     // elapsed >= INTERVALS[prevLevel], поэтому обычная тренировка не затронута.
     var lastRev = isDateStr(base[kLast]) ? base[kLast] : null;
     var elapsedDays = (lastRev && !sameDayRepeat) ? diffDays(today, lastRev) : null;
-    var earlyReview = !!(ans === ANSWERS.EASY && prevLevel > 0 && !sameDayRepeat &&
-      elapsedDays !== null && elapsedDays < INTERVALS[prevLevel]);
+    var earlyReview = false;
+    var daysEarly = 0;
+    if (ans === ANSWERS.EASY && prevLevel > 0 && !sameDayRepeat) {
+      if (elapsedDays !== null) {
+        earlyReview = elapsedDays < INTERVALS[prevLevel];
+        if (earlyReview) daysEarly = INTERVALS[prevLevel] - elapsedDays;
+      } else if (isDateStr(prevDue)) {
+        // Переходный период (аудит M1): у карточек, сохранённых ДО появления
+        // last_review_*, штампа нет — судим о зрелости по due-дате: срок в
+        // будущем ⇒ вспоминание раннее. Без этой ветви вся существующая база
+        // была бы слепа к guard'у до первого зачтённого ответа.
+        daysEarly = diffDays(prevDue, today);
+        earlyReview = daysEarly > 0;
+        if (!earlyReview) daysEarly = 0;
+      }
+    }
     var next;
 
     if (prevLevel === 0) {
@@ -451,7 +468,7 @@
       promotedFromNew: prevLevel === 0,
       sameDayRepeat: sameDayRepeat,
       earlyReview: earlyReview,
-      daysEarly: earlyReview ? (INTERVALS[prevLevel] - elapsedDays) : 0,
+      daysEarly: daysEarly,
       cardGroup: derivedGroup(c),
       pendingDirections: dueDirections(c, today),            // для learn-режима: вторая сторона ждёт
       warnings: warnings
@@ -1240,6 +1257,12 @@
           if (ahead > INTERVALS[MAX_LEVEL]) warnings.push(dueKey(dir) + '-too-far:' + due);
           if (isDateStr(card.created_at) && num(diffDays(card.created_at, due)) > 0) warnings.push(dueKey(dir) + '-before-created');
         }
+      }
+      // Аудит L7: мусорный штамп last_review молча выключал бы guard (fail-open) —
+      // делаем повреждение видимым хотя бы в warnings.
+      var lr = card[lastKey(dir)];
+      if (lr !== null && lr !== undefined && !isDateStr(lr)) {
+        warnings.push(lastKey(dir) + '-invalid:' + JSON.stringify(lr));
       }
     });
 

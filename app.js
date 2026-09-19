@@ -171,8 +171,18 @@ function mergeHistoryInto(target, incoming) {
   Object.keys(incoming).forEach(dateKey => {
     const inc = incoming[dateKey] || {};
     if (!target[dateKey]) { target[dateKey] = Object.assign({}, inc); return; }
-    target[dateKey].total = Math.max(target[dateKey].total || 0, inc.total || 0);
-    target[dateKey].correct = Math.max(target[dateKey].correct || 0, inc.correct || 0);
+    const live = target[dateKey];
+    // Аудит M5: максимумы по total/correct без breakdown давали внутренне
+    // противоречивый день (total=15 при сумме byAnswer=10) — донат и бары
+    // молча недосчитывали. Побеждает день ЦЕЛИКОМ; при равенстве добираем
+    // недостающий breakdown (посевные дни не имеют byAnswer).
+    if ((inc.total || 0) > (live.total || 0)) {
+      target[dateKey] = Object.assign({}, inc);
+    } else {
+      live.correct = Math.max(live.correct || 0, inc.correct || 0);
+      if (!live.byAnswer && inc.byAnswer) live.byAnswer = Object.assign({}, inc.byAnswer);
+      if (!live.byDirection && inc.byDirection) live.byDirection = Object.assign({}, inc.byDirection);
+    }
   });
   return target;
 }
@@ -1665,6 +1675,15 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
   const isLearnMode = mode === 'learn';
   const items = buildQueueForMode(mode, specificGroup, specificFilter, today);
 
+  // Аудит H1 (уточнение): learn/single_word/batch включают BANK-слова намеренно —
+  // первый ответ их активирует. Помечаем такие записи, чтобы isBank-фильтр в
+  // renderCurrentCard глушил только ПРИЗРАКОВ (слово ушло в Банк посреди сессии),
+  // а не легальные банковские записи стартовой очереди.
+  items.forEach(it => {
+    const c = it && cardById(it.cardId);
+    if (c && SRS.isBank(c)) it.bankAtStart = true;
+  });
+
   if (!items.length) {
     if (mode === 'system' || mode === 'daily' || mode === 'practice') {
       showToast('🎉 Nothing due — every review for today is done!', 'success');
@@ -1708,9 +1727,16 @@ function restartCurrentTrainingSession() {
 // ==========================================
 function renderCurrentCard() {
   if (currentCardIndex >= currentTrainingQueue.length) {
-    launchConfetti();
-    showToast('🎉 Practice finished! All words reviewed!', 'success');
-    recordActivity();
+    // Аудит M2: skip-all заканчивает очередь без единого ответа — конфетти и
+    // «победный» тост за такое не выдаются. Streak пишется в submitAnswer с
+    // первого зачтённого ответа, поэтому recordActivity отсюда убран.
+    const gradedAny = !!(srsSession && srsSession.graded && Object.keys(srsSession.graded).length > 0);
+    if (gradedAny) {
+      launchConfetti();
+      showToast('🎉 Practice finished! All words reviewed!', 'success');
+    } else {
+      showToast('Session ended — no words were reviewed.', 'info');
+    }
     // Reset direction override after session ends so next session starts with default
     sessionDirectionOverride = null;
     updateDirectionSwitcherUI(false);
@@ -1740,6 +1766,19 @@ function renderCurrentCard() {
   // Слово могли удалить из словаря прямо во время сессии — рендер не роняем.
   if (!card) {
     console.warn('[train] карточка исчезла из базы, пропускаем:', currentTrainingItem.cardId);
+    currentTrainingItem.done = true;
+    currentCardIndex++;
+    renderCurrentCard();
+    return;
+  }
+
+  // Аудит H1: слово могло уйти в Банк прямо во время сессии ('0', edit-модалка,
+  // словарь), а в очереди остаются его записи — включая requeue-копии другого
+  // вектора. Такой BANK НЕ показываем: любой ответ реактивировал бы слово
+  // вопреки явному решению пользователя (нарушение RULE 1). Записи, которые
+  // были банковскими С НАЧАЛА сессии (learn-режим), — легальны и рендерятся.
+  if (SRS.isBank(card) && !currentTrainingItem.bankAtStart) {
+    console.warn('[train] карточка в Банке — пропускаем запись очереди:', currentTrainingItem.cardId);
     currentTrainingItem.done = true;
     currentCardIndex++;
     renderCurrentCard();
@@ -2052,6 +2091,11 @@ async function submitAnswer(answerToken) {
   if (!h.byDirection[direction]) h.byDirection[direction] = { total: 0, correct: 0 };
   h.byDirection[direction].total = (h.byDirection[direction].total || 0) + 1;
   if (isCorrect) h.byDirection[direction].correct = (h.byDirection[direction].correct || 0) + 1;
+
+  // Аудит M2: активность/серия — с ПЕРВОГО зачтённого ответа (recordActivity
+  // идемпотентна внутри дня). Честная сессия, брошенная до конца очереди,
+  // больше не теряет серию; skip-all серию не зарабатывает.
+  recordActivity();
 
   sessionUndoStack.push(undoFrame);
   if (srsSession) SRS.sessionMarkGraded(srsSession, item.key, answer, direction);
@@ -2408,13 +2452,33 @@ function setupEditModal() {
         if (Number.isFinite(lr) && lr !== (Number(next.level_ru_en) || 0)) next = SRS.setDirectionLevel(next, 'ru_en', lr, today);
       }
 
+      // Аудит M3: замена текста слова молча наследовала ВСЮ память старого
+      // (cat→aircraft стартовал бы с L5, ни разу не будучи показанным).
+      // Отличаем исправление опечатки от ДРУГОГО слова: регистр/пробелы
+      // изменением не считаются.
+      const normTxt = (s) => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const textChanged = normTxt(next.word) !== normTxt(card.word)
+        || normTxt(next.translation) !== normTxt(card.translation);
+      let progressReset = false;
+      const wasActive = String(card.status || '').toUpperCase() === 'ACTIVE';
+      if (textChanged && wasActive && wantStatus !== 'BANK') {
+        progressReset = confirm(
+          `The text changed: "${card.word}" → "${next.word}".\n\n` +
+          'OK — this is a DIFFERENT word: reset its learning progress to the Bank.\n' +
+          'Cancel — just a typo fix: keep the current progress.'
+        );
+        if (progressReset) next = SRS.returnToBank(next);
+      }
+
       replaceCardById(next);
       await saveData();
       renderDictionary();
       renderDashboard();
       renderGroupsScreen();
       hideModal();
-      showToast(`✅ Card "${card.word}" successfully updated!`, 'success');
+      showToast(progressReset
+        ? `🏦 "${next.word}" saved — progress reset to the Bank (different word).`
+        : `✅ Card "${card.word}" successfully updated!`, progressReset ? 'info' : 'success');
     }
   });
 }
@@ -2675,6 +2739,13 @@ function setupEventHandlers() {
           answer: null
         });
         replaceCardById(SRS.returnToBank(bankCard));
+        // Аудит H1: глушим ВСЕ записи этого слова в очереди (включая requeue-копию
+        // другого вектора) — иначе призрак воскресит слово из Банка следующим
+        // ответом. Splice не делаем: индексы undo-кадров должны остаться валидными;
+        // isBank-фильтр в renderCurrentCard страхует вторым эшелоном.
+        if (Array.isArray(currentTrainingQueue)) {
+          currentTrainingQueue.forEach(it => { if (it && it.cardId === bankCard.id) it.done = true; });
+        }
         currentTrainingItem.done = true;
         currentCardIndex++;
         if (srsSession) srsSession.cursor = currentCardIndex;
@@ -2743,7 +2814,7 @@ function setupEventHandlers() {
 
     if (!word || !translation) return;
 
-    addSingleCard(word, translation, example, phonetic, exampleTrans, '', 'batch_manual', 'Single Additions');
+    const addOutcome = addSingleCard(word, translation, example, phonetic, exampleTrans, '', 'batch_manual', 'Single Additions');
     await saveData();
     
     renderDashboard();
@@ -2751,7 +2822,11 @@ function setupEventHandlers() {
     renderGroupsScreen();
     renderStatistics();
 
-    showToast(`✅ Word "${word}" successfully added & saved!`, 'success');
+    if (addOutcome === 'duplicate') {
+      showToast(`ℹ️ "${word}" is already in the dictionary — existing progress kept.`, 'info');
+    } else {
+      showToast(`✅ Word "${word}" successfully added & saved!`, 'success');
+    }
     e.target.reset();
   });
 
@@ -2778,6 +2853,7 @@ Each object must have these fields:
     }
 
     let addedCount = 0;
+    let dupCount = 0;   // Аудит M4: дубликаты считаем отдельно и честно показываем
     let isJsonParsed = false;
 
     // Create a unique Batch ID & Name for this import session
@@ -2803,8 +2879,8 @@ Each object must have these fields:
           const exTr = (item.example_translation || item.example_rus || '').trim();
           const pos = item.part_of_speech || item.pos || '';
 
-          addSingleCard(w, t, ex, phon, exTr, pos, batchId, item.batch_title || batchName);
-          addedCount++;
+          if (addSingleCard(w, t, ex, phon, exTr, pos, batchId, item.batch_title || batchName) === 'added') addedCount++;
+          else dupCount++;
         }
       });
       isJsonParsed = true;
@@ -2812,7 +2888,7 @@ Each object must have these fields:
       isJsonParsed = false;
     }
 
-    if (!isJsonParsed || addedCount === 0) {
+    if (!isJsonParsed || (addedCount === 0 && dupCount === 0)) {
       const lines = rawText.split('\n');
       lines.forEach(line => {
         if (!line.trim()) return;
@@ -2840,16 +2916,19 @@ Each object must have these fields:
           }
 
           if (w && t) {
-            addSingleCard(w, t, ex, phon, exTr, '', batchId, batchName);
-            addedCount++;
+            if (addSingleCard(w, t, ex, phon, exTr, '', batchId, batchName) === 'added') addedCount++;
+            else dupCount++;
           }
         }
       });
     }
 
-    if (addedCount > 0) {
+    if (addedCount > 0 || dupCount > 0) {
       await saveData();
-      showToast(`🚀 Successfully imported ${addedCount} cards into batch "${batchName}"!`, 'success');
+      const dupSuffix = dupCount > 0 ? ` ${dupCount} duplicate${dupCount === 1 ? '' : 's'} skipped — existing progress kept.` : '';
+      showToast(addedCount > 0
+        ? `🚀 Successfully imported ${addedCount} cards into batch "${batchName}"!${dupSuffix}`
+        : `ℹ️ Nothing new to import — all ${dupCount} entries are already in the dictionary.`, dupCount > 0 && addedCount === 0 ? 'info' : 'success');
       document.getElementById('textarea-antigravity').value = '';
       switchScreen('groups');
     } else {
@@ -2932,6 +3011,17 @@ Each object must have these fields:
 }
 
 function addSingleCard(word, translation, example, phonetic = '', example_translation = '', part_of_speech = '', batch_id = null, batch_name = null) {
+  // Аудит M4: дедуп по word+translation на ВСЕХ UI-путях (форма, JSON, текст,
+  // файл). Раньше повторный импорт дублировал батч, а на перезапуске
+  // mergeRecords сливал копии по MAX уровню — слово становилось «наученнее»,
+  // чем было на самом деле. Возвращает 'added' | 'duplicate'.
+  const comboWord = String(word || '').trim().toLowerCase();
+  if (comboWord) {
+    const combo = comboWord + '\u0000' + String(translation || '').trim().toLowerCase();
+    const twin = appState.cards.find(c => c &&
+      String(c.word || '').trim().toLowerCase() + '\u0000' + String(c.translation || '').trim().toLowerCase() === combo);
+    if (twin) return 'duplicate';
+  }
   const finalBatchId = batch_id || 'batch_manual';
   const finalBatchName = batch_name || 'Single Additions';
   const pos = part_of_speech || inferPartOfSpeech({ word, translation });
@@ -2956,6 +3046,7 @@ function addSingleCard(word, translation, example, phonetic = '', example_transl
     created_at: getTodayString(),
     fail_count: 0
   });
+  return 'added';
 }
 
 let parsedFileCards = [];
@@ -3002,12 +3093,16 @@ function handleFileSelected(file) {
 document.getElementById('btn-confirm-file-import').addEventListener('click', async () => {
   if (parsedFileCards.length === 0) return;
 
+  let fileAdded = 0, fileDup = 0;
   parsedFileCards.forEach(item => {
-    addSingleCard(item.word, item.translation, item.example);
+    if (addSingleCard(item.word, item.translation, item.example) === 'added') fileAdded++;
+    else fileDup++;
   });
 
   await saveData();
-  showToast(`✅ Successfully imported ${parsedFileCards.length} words from file!`, 'success');
+  showToast(fileDup > 0
+    ? `✅ Imported ${fileAdded} words from file — ${fileDup} duplicate${fileDup === 1 ? '' : 's'} skipped (existing progress kept).`
+    : `✅ Successfully imported ${fileAdded} words from file!`, 'success');
   document.getElementById('file-preview-area').classList.add('hidden');
   switchScreen('dashboard');
 });
