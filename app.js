@@ -2085,6 +2085,10 @@ async function submitAnswer(answerToken) {
     showToast(`${meta.icon} “${card.word}” ${direction === 'en_ru' ? 'EN→RU' : 'RU→EN'} → L${nextInfo.level}, back ${nextInfo.intervalDays}d${requeueOutcome === 'requeued' ? ' · repeated in this session' : ''}`, 'error');
   } else if (result.outcome === 'advance') {
     showToast(`${meta.icon} “${card.word}” ${direction === 'en_ru' ? 'EN→RU' : 'RU→EN'} → L${nextInfo.level} (${nextInfo.group}), next in ${nextInfo.intervalDays}d`, 'success');
+  } else if (result.warnings && result.warnings.includes('same_day_easy_hold')) {
+    // Антиинфляционный guard SRS: второе «Легко» за день — это краткосрочная
+    // память, уровень остаётся прежним. Говорим честно, чтобы hold не выглядел багом.
+    showToast(`⏳ “${card.word}” already passed today — held at L${nextInfo.level}. Level-ups need a recall on a later day.`, 'info');
   } else {
     showToast(`${meta.icon} “${card.word}” held at L${nextInfo.level}, next in ${nextInfo.intervalDays}d`, 'info');
   }

@@ -269,6 +269,9 @@
   function otherDir(dir) { return normalizeDir(dir) === 'en_ru' ? 'ru_en' : 'en_ru'; }
   function levelKey(dir) { return 'level_' + normalizeDir(dir); }
   function dueKey(dir) { return 'next_review_' + normalizeDir(dir); }
+  /* День последнего ответа по направлению — память антиинфляционного guards:
+     повторное EASY в те же календарные сутки уровень НЕ поднимает. */
+  function lastKey(dir) { return 'last_review_' + normalizeDir(dir); }
 
   function directionLevel(card, dir) { return card ? clampLevel(card[levelKey(dir)]) : 0; }
 
@@ -384,15 +387,23 @@
     if (isBank(base)) { base = activateCard(base, today); activated = true; }
 
     var c = clone(base);
-    var kL = levelKey(d), kD = dueKey(d);
+    var kL = levelKey(d), kD = dueKey(d), kLast = lastKey(d);
     var prevLevel = clampLevel(base[kL]);
     var prevDue = directionDueDate(base, d);
+    // Антиинфляционный guard (19.09, проблема пользователя): второй ответ в те же
+    // календарные сутки подсказан краткосрочной памятью, а не долгосрочной —
+    // «Легко» через 5 минут после «Легко» не доказательство знания.
+    var sameDayRepeat = base[kLast] === today;
     var next;
 
     if (prevLevel === 0) {
       next = MIN_REST_LEVEL;                                 // A1: любой ответ уводит с нуля
     } else if (ans === ANSWERS.EASY) {
-      next = Math.min(prevLevel + 1, MAX_LEVEL);
+      // EASY при повторе в те же сутки ЗАМОРАЖИВАЕТ уровень (как HARD): подъём по лестнице
+      // возможен только через вспоминание, разнесённое по дням. Иначе слово,
+      // удержанное «на пять минут», раздувается до недельного интервала и
+      // выпадает из обучения до фактического забывания.
+      next = sameDayRepeat ? prevLevel : Math.min(prevLevel + 1, MAX_LEVEL);
     } else if (ans === ANSWERS.HARD) {
       next = prevLevel;                                      // заморозка
     } else {
@@ -401,12 +412,16 @@
 
     c[kL] = next;
     c[kD] = addDays(today, INTERVALS[next]);
+    c[kLast] = today;   // штамп дня последнего ответа этого вектора (память guard'а)
     c.review_count = num(c.review_count) + 1;
     if (ans === ANSWERS.AGAIN) c.fail_count = num(c.fail_count) + 1;
 
     var warnings = [];
     if (next < MIN_REST_LEVEL) warnings.push('level0_retained');
     if (isDirectionDue(c, d, today)) warnings.push('still_due_today');
+    if (sameDayRepeat && ans === ANSWERS.EASY && prevLevel > 0 && next === prevLevel) {
+      warnings.push('same_day_easy_hold');
+    }
 
     return {
       card: c,
@@ -417,6 +432,7 @@
       next: { level: next, due: c[kD], intervalDays: INTERVALS[next], group: groupForLevel(next) },
       outcome: next > prevLevel ? 'advance' : (next < prevLevel ? 'reset' : 'hold'),
       promotedFromNew: prevLevel === 0,
+      sameDayRepeat: sameDayRepeat,
       cardGroup: derivedGroup(c),
       pendingDirections: dueDirections(c, today),            // для learn-режима: вторая сторона ждёт
       warnings: warnings

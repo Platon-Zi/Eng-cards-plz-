@@ -723,7 +723,7 @@ describe('applyAnswer matrix', () => {
     }
   });
 
-  test('rule 4/A8: firewall — every matrix cell touches only the 4 scheduling fields, other direction byte-identical, input untouched', () => {
+  test('rule 4/A8: firewall — every matrix cell touches only the 5 scheduling fields, other direction byte-identical, input untouched', () => {
     for (const dir of DIRS) {
       for (const L of LEVELS) {
         for (const ans of ANSWER_LIST) {
@@ -737,7 +737,8 @@ describe('applyAnswer matrix', () => {
           assert.equal(res.card['next_review_' + other], OTHER_DUE, m + ': other due must stay byte-identical');
           /* changed-key whitelist */
           const changed = changedKeys(before, res.card);
-          const allowed = ['level_' + dir, 'next_review_' + dir, 'review_count', 'fail_count'].sort();
+          // last_review_<dir> добавлен 19.09: штамп дня для same-day anti-inflation guard.
+          const allowed = ['level_' + dir, 'next_review_' + dir, 'last_review_' + dir, 'review_count', 'fail_count'].sort();
           for (const k of changed) {
             assert.ok(allowed.indexOf(k) !== -1, m + ': field `' + k + '` changed — A8 allows only ' + allowed.join(','));
           }
@@ -866,8 +867,9 @@ describe('applyAnswer matrix', () => {
       created_at: '2026-01-01', status: 'ACTIVE',
       level_en_ru: 2, level_ru_en: 2,
       next_review_en_ru: '2026-09-19', next_review_ru_en: '2026-09-19',
+      last_review_en_ru: TODAY,
       fail_count: 2, review_count: 6
-    }), 'again at L4: only level/due/fail/review change, content byte-identical');
+    }), 'again at L4: only level/due/last_review/fail/review change, content byte-identical');
     assert.deepEqual(J(res.prev), { level: 4, due: '2026-09-20' }, 'prev snapshot');
     assert.deepEqual(J(res.next), { level: 2, due: '2026-09-19', intervalDays: 2, group: 'FAMILIAR' }, 'next snapshot');
     assert.equal(res.cardGroup, 'FAMILIAR', 'cardGroup = weakest direction after the answer');
@@ -2575,5 +2577,68 @@ describe('live migrated base (data/leitner_data.json)', () => {
     const again = JSON.parse(text);
     assert.deepEqual(J(again.cards), J(live.state.cards), 'live: serialization is lossless for cards');
     assert.equal(Number(again.schema_version), SRS.SCHEMA_VERSION, 'live: serialization keeps schema 2');
+  });
+});
+
+/* ============ Антиинфляционный guard: EASY дважды за день НЕ поднимает уровень ============
+   Проблема пользователя (19.09): повторная сессия в тот же день — слова «легко
+   вспоминаются» из краткосрочной памяти и неправомерно уезжают на недельные
+   интервалы. Guard в applyAnswer: last_review_<dir> === today ⇒ EASY держит уровень. */
+describe('same-day anti-inflation guard (Easy twice in one day holds the level)', () => {
+  const D = 'en_ru';
+  const tomorrow = SRS.addDays(TODAY, 1);
+
+  test('первый EASY дня поднимает уровень и ставит штамп last_review', () => {
+    const r1 = SRS.applyAnswer(mkCard('sd1', { level_en_ru: 2, next_review_en_ru: TODAY }), D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r1.next.level, 3, 'L2 --easy--> L3');
+    assert.equal(r1.outcome, 'advance');
+    assert.equal(r1.card.last_review_en_ru, TODAY, 'last_review_en_ru штампуется днём ответа');
+    assert.equal(r1.sameDayRepeat, false, 'до ответа сегодня повторов не было');
+  });
+
+  test('второй EASY того же дня ЗАМОРАЖИВАЕТ уровень (hold + warning)', () => {
+    const r1 = SRS.applyAnswer(mkCard('sd2', { level_en_ru: 2, next_review_en_ru: TODAY }), D, SRS.ANSWERS.EASY, TODAY);
+    const r2 = SRS.applyAnswer(r1.card, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r2.next.level, 3, 'уровень не вырос: 3 осталось 3');
+    assert.equal(r2.outcome, 'hold');
+    assert.equal(r2.sameDayRepeat, true);
+    assert.ok(r2.warnings.includes('same_day_easy_hold'), 'warning для UI-тоста');
+    assert.equal(r2.card.next_review_en_ru, SRS.addDays(TODAY, SRS.INTERVALS[3]), 'due пересчитан от сегодня по ТЕКУЩЕМУ уровню');
+  });
+
+  test('EASY на СЛЕДУЮЩИЙ день снова продвигает (guard не вечная заморозка)', () => {
+    const r1 = SRS.applyAnswer(mkCard('sd3', { level_en_ru: 2, next_review_en_ru: TODAY }), D, SRS.ANSWERS.EASY, TODAY);
+    const r2 = SRS.applyAnswer(r1.card, D, SRS.ANSWERS.EASY, tomorrow);
+    assert.equal(r2.next.level, 4, 'разнесённое по дням вспоминание растит уровень 3→4');
+    assert.equal(r2.sameDayRepeat, false);
+  });
+
+  test('Forgot →Easy в той же сессии НЕ взбирается обратно по лестнице', () => {
+    const r1 = SRS.applyAnswer(mkCard('sd4', { level_en_ru: 4, next_review_en_ru: TODAY }), D, SRS.ANSWERS.AGAIN, TODAY);
+    assert.equal(r1.next.level, 2, 'AGAIN на L4 сбрасывает до L2 (существующее правило)');
+    const r2 = SRS.applyAnswer(r1.card, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r2.next.level, 2, 'сразу после провала «Легко» держит L2 — слово вернётся через 2 дня, а не через 4');
+    assert.equal(r2.outcome, 'hold');
+    assert.ok(r2.warnings.includes('same_day_easy_hold'));
+    assert.equal(r2.card.next_review_en_ru, SRS.addDays(TODAY, 2));
+  });
+
+  test('A8 не сломан: guard трогает только отвеченный вектор', () => {
+    const c0 = mkCard('sd5', { level_en_ru: 3, level_ru_en: 3 });
+    const before = JSON.stringify({ l: c0.level_ru_en, due: c0.next_review_ru_en, last: c0.last_review_ru_en });
+    const r1 = SRS.applyAnswer(c0, D, SRS.ANSWERS.EASY, TODAY);
+    const r2 = SRS.applyAnswer(r1.card, D, SRS.ANSWERS.EASY, TODAY);
+    const after = JSON.stringify({ l: r2.card.level_ru_en, due: r2.card.next_review_ru_en, last: r2.card.last_review_ru_en });
+    assert.equal(after, before, 'ru_en вектор байт-в-байт прежний');
+  });
+
+  test('HARD и AGAIN в тот же день работают как раньше', () => {
+    const c0 = mkCard('sd6', { level_en_ru: 3, next_review_en_ru: TODAY });
+    const rH1 = SRS.applyAnswer(c0, D, SRS.ANSWERS.HARD, TODAY);
+    const rH2 = SRS.applyAnswer(rH1.card, D, SRS.ANSWERS.HARD, TODAY);
+    assert.equal(rH2.next.level, 3, 'hard по-прежнему морозит');
+    assert.ok(!rH2.warnings.includes('same_day_easy_hold'), 'warning только для EASY');
+    const rA = SRS.applyAnswer(rH2.card, D, SRS.ANSWERS.AGAIN, TODAY);
+    assert.equal(rA.next.level, 1, 'AGAIN L3→L1 без изменений (lowMaxLevel=3)');
   });
 });
