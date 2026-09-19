@@ -371,6 +371,48 @@
      при активации из Банка (result.activated). */
   var DM_GOAL_KEY = 'vocaba_daily_goal';
 
+  /* ---- Отбор «супер-важного» повторения (идея пользователя 19.09) ----
+     Кнопка Must-review — это НЕ вся Practice-очередь, а ограниченный дневной
+     минимум: худшие слова первыми. Риск считается на записях review-очереди
+     SRS (item.overdue/intervalDays/level уже проставлены ядром):
+       decay      = overdue / interval   — насколько слово перезрело относительно
+                                          собственного интервала (забывается);
+       fragility  = fail_count / review_count — исторически хрупкое слово;
+       importance = level / MAX_LEVEL    — дорогой прогресс (L5 терять больнее).
+       score = 2*decay + 1.5*fragility + importance + (0.5 если перезрело)
+     Потолок CAP=40: сессию реально закрыть перед сном; app.js вызывает
+     window.VocabaCritical.select() из режима 'critical'. */
+  var CRITICAL_CAP = 40;
+
+  function criticalScore(item, card) {
+    var daysOver = Math.max(0, Number(item && item.overdue) || 0);
+    var interval = Math.max(1, Number(item && item.intervalDays) || 1);
+    var level = Math.max(0, Number(item && item.level) || 0);
+    var rc = Number(card && card.review_count) || 0;
+    var fc = Number(card && card.fail_count) || 0;
+    var decay = daysOver / interval;
+    var fragility = fc / Math.max(1, rc);
+    var importance = level / 6;
+    return 2 * decay + 1.5 * fragility + importance + (daysOver > 0 ? 0.5 : 0);
+  }
+
+  function criticalSelect(items, cards) {
+    var byId = {};
+    (cards || []).forEach(function (c) { if (c && c.id != null) byId[c.id] = c; });
+    var scored = (items || []).map(function (it) {
+      return { it: it, s: criticalScore(it, byId[it && it.cardId]) };
+    });
+    scored.sort(function (a, b) {
+      if (b.s !== a.s) return b.s - a.s;
+      var ao = Number(a.it.overdue) || 0, bo = Number(b.it.overdue) || 0;
+      if (bo !== ao) return bo - ao;
+      return (Number(b.it.level) || 0) - (Number(a.it.level) || 0);
+    });
+    return scored.slice(0, CRITICAL_CAP).map(function (x) { return x.it; });
+  }
+
+  window.VocabaCritical = { CAP: CRITICAL_CAP, score: criticalScore, select: criticalSelect };
+
   function dmGoal() {
     var v = 15;
     try { v = parseInt(localStorage.getItem(DM_GOAL_KEY), 10); } catch (e) {}
@@ -406,12 +448,17 @@
     var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
     var goal = dmGoal();
     var learned = Number(dmDay(today).newWords) || 0;
-    var due = 0;
+    var dueItems = [];
     try {
       if (typeof SRS !== 'undefined' && typeof SRS.buildReviewQueue === 'function') {
-        due = SRS.buildReviewQueue(dmCards(), today, {}).length;
+        dueItems = SRS.buildReviewQueue(dmCards(), today, {}) || [];
       }
     } catch (e) {}
+    var due = dueItems.length;
+    var critical = due;
+    try {
+      if (window.VocabaCritical) critical = window.VocabaCritical.select(dueItems, dmCards(), today).length;
+    } catch (e) { critical = due; }
     var pct = Math.min(100, Math.round((learned / goal) * 100));
     var goalReached = learned >= goal;
 
@@ -430,13 +477,15 @@
     setTxt('dm-ring-pct', pct + '%');
     setTxt('dm-learned', String(learned));
     setTxt('dm-goal-show', String(goal));
-    setTxt('dm-remaining', String(due));
+    setTxt('dm-remaining', String(critical));
     setTxt('dm-learn-caption', goalReached
       ? '🎉 Goal reached! Learn more or rest — no pressure.'
       : 'Tap to learn new words from the Bank');
     setTxt('dm-review-caption', due === 0
       ? '✅ All reviews done — sleep well!'
-      : "The day's minimum — tap to start");
+      : (critical < due
+        ? ('The worst ' + critical + ' of ' + due + ' due — tap to start')
+        : "The day's minimum — tap to start"));
     setTxt('dm-flame', due === 0 ? '✅' : '🔥');
     panel.classList.toggle('dm-goal-reached', goalReached);
     panel.classList.toggle('dm-review-done', due === 0);
@@ -456,7 +505,7 @@
     function go(mode) {
       if (typeof startTrainingSession === 'function') startTrainingSession(mode);
     }
-    [['dm-learn', 'learn'], ['dm-review', 'system']].forEach(function (pair) {
+    [['dm-learn', 'learn'], ['dm-review', 'critical']].forEach(function (pair) {
       var el = document.getElementById(pair[0]);
       if (!el) return;
       el.addEventListener('click', function () { go(pair[1]); });

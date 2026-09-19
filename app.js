@@ -1625,6 +1625,19 @@ function buildQueueForMode(mode, specificGroup, specificFilter, today) {
   if (mode === 'eng-rus') return SRS.buildCramQueue(cards, today, queueOpts({ direction: 'en_ru' }));
   if (mode === 'rus-eng') return SRS.buildCramQueue(cards, today, queueOpts({ direction: 'ru_en' }));
 
+  if (mode === 'critical') {
+    // Today's Mission (19.09): НЕ вся Practice-очередь, а только критический
+    // минимум дня — перезревшие/хрупкие/дорогие по уровню слова, худшие первыми,
+    // с потолком VocabaCritical.CAP. Сам отбор живёт в datacare.js (территория
+    // второго агента); здесь вызов с graceful-фолбэком на полную due-очередь.
+    const base = SRS.buildReviewQueue(cards, today, queueOpts({}));
+    if (typeof window.VocabaCritical !== 'undefined' && typeof window.VocabaCritical.select === 'function') {
+      try { return window.VocabaCritical.select(base, cards, today); }
+      catch (e) { console.warn('[critical] selector failed, full due queue instead:', e); }
+    }
+    return base;
+  }
+
   // 'system' / 'daily' / 'practice' — большая кнопка Practice: ровно то, что должно сегодня.
   return SRS.buildReviewQueue(cards, today, queueOpts({ group: specificGroup || undefined }));
 }
@@ -1707,7 +1720,7 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
   }
 
   if (!items.length) {
-    if (mode === 'system' || mode === 'daily' || mode === 'practice') {
+    if (mode === 'system' || mode === 'daily' || mode === 'practice' || mode === 'critical') {
       showToast('🎉 Nothing due — every review for today is done!', 'success');
     } else if (isLearnMode) {
       showToast('🏦 The Bank is empty — no new words to learn right now.', 'info');

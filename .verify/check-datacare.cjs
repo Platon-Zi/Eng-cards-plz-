@@ -191,28 +191,33 @@ const $ = sel => d.querySelector(sel);
     }
   }
 
-  // ── 11. Today's Mission: дневной минимум на главном экране ──────────────
+  // ── 11. Today's Mission: дневной минимум (критическое повторение СЛЕВА, новые слова СПРАВА) ──
   // srsToday уже зафиксирован §10 ('2026-09-19'); переключаем на dashboard и
   // синхронно перерисовываем панель themechange-событием (listener на window).
   w.eval(`switchScreen('dashboard'); window.dispatchEvent(new CustomEvent('themechange'));`);
   const dmRaw = w.eval(`(function () {
     var cards = (typeof appState !== 'undefined' && appState && Object.prototype.toString.call(appState.cards) === '[object Array]')
       ? appState.cards : ((window.LEITNER_DATA && LEITNER_DATA.cards) || []);
-    var due = -1;
-    try { due = SRS.buildReviewQueue(cards, srsToday(), {}).length; } catch (e) {}
+    var dueItems = [];
+    try { dueItems = SRS.buildReviewQueue(cards, srsToday(), {}) || []; } catch (e) {}
+    var criticalItems = window.VocabaCritical ? window.VocabaCritical.select(dueItems, cards, srsToday()) : dueItems;
     var hist = (typeof appState !== 'undefined' && appState && appState.history) ? appState.history : ((window.LEITNER_DATA && LEITNER_DATA.history) || {});
     var day = hist[srsToday()] || {};
     var g = function (id) { var e = document.getElementById(id); return e ? e.textContent : null; };
     var input = document.getElementById('dm-goal-input');
+    var firstTile = document.querySelector('#daily-mission .dm-grid .dm-tile');
     return JSON.stringify({
-      due: due,
+      due: dueItems.length,
+      expectedCritical: criticalItems.length,
+      cap: window.VocabaCritical ? window.VocabaCritical.CAP : null,
       rem: g('dm-remaining'),
+      caption: g('dm-review-caption'),
       learned: g('dm-learned'),
       expectedLearned: Number(day.newWords) || 0,
       ring: g('dm-ring-pct'),
-      goalShow: g('dm-goal-show'),
       goalVal: input ? Number(input.value) : null,
       date: g('dm-date'),
+      firstTileIsReview: !!(firstTile && firstTile.id === 'dm-review'),
       boundLearn: !!(document.getElementById('dm-learn') && document.getElementById('dm-learn').dataset.bound === '1'),
       boundReview: !!(document.getElementById('dm-review') && document.getElementById('dm-review').dataset.bound === '1'),
       boundInput: !!(input && input.dataset.bound === '1'),
@@ -222,10 +227,17 @@ const $ = sel => d.querySelector(sel);
   const dmData = JSON.parse(dmRaw);
   rec('миссия: панель и обе плитки в разметке',
     !!$('#daily-mission') && !!$('#dm-learn') && !!$('#dm-review') && !!$('#dm-goal-input'));
-  rec('миссия: обязательное повторение = длина SRS review-очереди',
-    dmData.rem === String(dmData.due), `${dmData.rem} vs ${dmData.due}`);
-  rec('миссия: сид-база даёт ненулевой must-review (иначе проверка деградировала)',
-    dmData.due > 0, String(dmData.due));
+  rec('миссия: повторения СЛЕВА, новые слова СПРАВА (порядок плиток)', dmData.firstTileIsReview === true);
+  rec('миссия: кнопка показывает КРИТИЧЕСКИЙ минимум, а не всю due-очередь',
+    dmData.rem === String(dmData.expectedCritical)
+      && dmData.expectedCritical <= dmData.cap
+      && dmData.expectedCritical <= dmData.due,
+    `${dmData.rem} critical / ${dmData.due} due, cap ${dmData.cap}`);
+  rec('миссия: на сид-бэклоге срабатывает потолок (cap < due)',
+    dmData.expectedCritical === dmData.cap && dmData.due > dmData.cap,
+    `cap=${dmData.expectedCritical}, due=${dmData.due}`);
+  rec('миссия: подпись честная — «worst N of M due»',
+    /worst \d+ of \d+ due/.test(dmData.caption || ''), String(dmData.caption));
   rec("миссия: новых слов сегодня = history[today].newWords (сид: 0)",
     dmData.learned === String(dmData.expectedLearned), `${dmData.learned} vs ${dmData.expectedLearned}`);
   rec('миссия: кольцо % = learned/goal',
@@ -235,6 +247,7 @@ const $ = sel => d.querySelector(sel);
   rec('миссия: дефолтная цель 15, дата непустая', dmData.goalVal === 15 && !!dmData.date, `goal=${dmData.goalVal} date=${dmData.date}`);
   rec('миссия: плитки и input заваершены (dataset.bound)',
     dmData.boundLearn && dmData.boundReview && dmData.boundInput);
+
   // смена цели: localStorage + перерисовка
   w.eval(`(function () {
     var i = document.getElementById('dm-goal-input');
@@ -252,6 +265,57 @@ const $ = sel => d.querySelector(sel);
     i.value = '15';
     i.dispatchEvent(new window.Event('change'));
   })()`);
+
+  // юнит-проверки селектора критического минимума
+  const dmOrder = JSON.parse(w.eval(`(function () {
+    var V = window.VocabaCritical;
+    var clean = { id: 'c', review_count: 10, fail_count: 0 };
+    var fragile = { id: 'f', review_count: 10, fail_count: 5 };
+    var s1 = V.score({ overdue: 9, intervalDays: 14, level: 5 }, clean);
+    var s2 = V.score({ overdue: 0, intervalDays: 1, level: 1 }, fragile);
+    var s3 = V.score({ overdue: 0, intervalDays: 1, level: 1 }, clean);
+    var sel = V.select([
+      { cardId: 'a', direction: 'en_ru', overdue: 0, intervalDays: 1, level: 1 },
+      { cardId: 'b', direction: 'en_ru', overdue: 9, intervalDays: 14, level: 5 }
+    ], [{ id: 'a', review_count: 2, fail_count: 0 }, { id: 'b', review_count: 8, fail_count: 1 }], '2026-09-19');
+    var capped = [];
+    for (var i = 0; i < 50; i++) capped.push({ cardId: 'x' + i, direction: 'en_ru', overdue: i, intervalDays: 7, level: 3 });
+    var selCapped = V.select(capped, [], '2026-09-19');
+    return JSON.stringify({
+      overdueFirst: s1 > s2,
+      fragileBeatsClean: s2 > s3,
+      worstFirst: sel.length === 2 && sel[0].cardId === 'b',
+      capWorks: selCapped.length === V.CAP && selCapped[0].overdue === 49
+    });
+  })()`));
+  rec('селектор: перезревшая дорогая L5 важнее сегодняшней L1', dmOrder.overdueFirst === true);
+  rec('селектор: хрупкое слово важнее чистого при том же сроке', dmOrder.fragileBeatsClean === true);
+  rec('селектор: худшие первыми в очереди', dmOrder.worstFirst === true);
+  rec('селектор: потолок 40 режет хвост, оставляя худших', dmOrder.capWorks === true);
+
+  // боевая проверка: клик левой плитки запускает сессию 'critical'
+  const dmLive = JSON.parse(w.eval(`(function () {
+    var out = {};
+    try {
+      document.getElementById('dm-review').click();
+      var tr = document.getElementById('screen-training');
+      out.trainingActive = !!(tr && tr.classList.contains('active'));
+      var ctr = document.getElementById('train-counter');
+      out.counter = ctr ? ctr.textContent : '';
+      try {
+        if (typeof srsSession !== 'undefined' && srsSession) {
+          out.mode = srsSession.mode;
+          out.len = srsSession.items.length;
+        } else { out.letInvisible = true; }
+      } catch (e) { out.letInvisible = true; }
+    } catch (e) { out.crash = String(e); }
+    return JSON.stringify(out);
+  })()`));
+  rec('миссия: клик по must-review открывает тренировку', dmLive.trainingActive === true && !dmLive.crash, JSON.stringify(dmLive));
+  rec("миссия: сессия 'critical' — счётчик очереди = критический минимум",
+    dmLive.counter === '1 / ' + dmData.expectedCritical
+      || (dmLive.mode === 'critical' && dmLive.len === dmData.expectedCritical),
+    JSON.stringify(dmLive));
 
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
