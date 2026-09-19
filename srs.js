@@ -394,16 +394,26 @@
     // календарные сутки подсказан краткосрочной памятью, а не долгосрочной —
     // «Легко» через 5 минут после «Легко» не доказательство знания.
     var sameDayRepeat = base[kLast] === today;
+    // Обобщение guard'а: EASY ДО наступления срока (ранний повтор — cram/группы/
+    // single word) уровень тоже не поднимает. Подъём = вспоминание НА интервале
+    // или позже; ранний повтор — бонусная практика без надувания интервала.
+    // В due-очередях (system/daily/practice) карточка показывается только когда
+    // elapsed >= INTERVALS[prevLevel], поэтому обычная тренировка не затронута.
+    var lastRev = isDateStr(base[kLast]) ? base[kLast] : null;
+    var elapsedDays = (lastRev && !sameDayRepeat) ? diffDays(today, lastRev) : null;
+    var earlyReview = !!(ans === ANSWERS.EASY && prevLevel > 0 && !sameDayRepeat &&
+      elapsedDays !== null && elapsedDays < INTERVALS[prevLevel]);
     var next;
 
     if (prevLevel === 0) {
       next = MIN_REST_LEVEL;                                 // A1: любой ответ уводит с нуля
     } else if (ans === ANSWERS.EASY) {
-      // EASY при повторе в те же сутки ЗАМОРАЖИВАЕТ уровень (как HARD): подъём по лестнице
-      // возможен только через вспоминание, разнесённое по дням. Иначе слово,
-      // удержанное «на пять минут», раздувается до недельного интервала и
-      // выпадает из обучения до фактического забывания.
-      next = sameDayRepeat ? prevLevel : Math.min(prevLevel + 1, MAX_LEVEL);
+      // EASY при повторе в те же сутки или ДО срока ЗАМОРАЖИВАЕТ уровень (как HARD):
+      // подъём по лестнице возможен только через вспоминание на плановом интервале
+      // или позже. Иначе слово, удержанное «на пять минут» (или закрамленное
+      // ежедневно), раздувается до недельного интервала и выпадает из обучения
+      // до фактического забывания.
+      next = (sameDayRepeat || earlyReview) ? prevLevel : Math.min(prevLevel + 1, MAX_LEVEL);
     } else if (ans === ANSWERS.HARD) {
       next = prevLevel;                                      // заморозка
     } else {
@@ -412,7 +422,13 @@
 
     c[kL] = next;
     c[kD] = addDays(today, INTERVALS[next]);
-    c[kLast] = today;   // штамп дня последнего ответа этого вектора (память guard'а)
+    // Штамп «последний ответ» двигаем только когда ответ ЗАЧТЁН в прогресс.
+    // Held-ранний/повторный EASY штамп НЕ обновляет: плановые часы продолжают
+    // идти от последнего честного вспоминания — ежедневный cram не обнуляет
+    // elapsed, и слово поднимется ровно когда интервал созреет (elapsed >= INTERVALS).
+    if (!(ans === ANSWERS.EASY && prevLevel > 0 && (sameDayRepeat || earlyReview))) {
+      c[kLast] = today;
+    }
     c.review_count = num(c.review_count) + 1;
     if (ans === ANSWERS.AGAIN) c.fail_count = num(c.fail_count) + 1;
 
@@ -422,6 +438,7 @@
     if (sameDayRepeat && ans === ANSWERS.EASY && prevLevel > 0 && next === prevLevel) {
       warnings.push('same_day_easy_hold');
     }
+    if (earlyReview && next === prevLevel) warnings.push('early_easy_hold');
 
     return {
       card: c,
@@ -433,6 +450,8 @@
       outcome: next > prevLevel ? 'advance' : (next < prevLevel ? 'reset' : 'hold'),
       promotedFromNew: prevLevel === 0,
       sameDayRepeat: sameDayRepeat,
+      earlyReview: earlyReview,
+      daysEarly: earlyReview ? (INTERVALS[prevLevel] - elapsedDays) : 0,
       cardGroup: derivedGroup(c),
       pendingDirections: dueDirections(c, today),            // для learn-режима: вторая сторона ждёт
       warnings: warnings
@@ -1410,6 +1429,11 @@
     if (idx === -1) return 'absent';
     var item = s.items.splice(idx, 1)[0];
     if (n === 0) {
+      // Инвариант «order зеркалит items»: сначала вынимаем ключ со СТАРОЙ позиции
+      // (без этого первый же skip рассинхронизировал массивы — order рос на призрак),
+      // затем добавляем в хвост обоих массивов.
+      var oiFirst = s.order.indexOf(key);
+      if (oiFirst !== -1) s.order.splice(oiFirst, 1);
       s.items.push(clone(item));
       s.order.push(key);
       return 'moved-to-tail';

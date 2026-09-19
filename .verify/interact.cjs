@@ -544,6 +544,16 @@ const dd = (n) => SRS.addDays(T, n);
         env.evalIn(`currentTrainingQueue.length`) === qLenBefore + 1
         && env.evalIn(`currentTrainingQueue.some(i => i.key === ${JSON.stringify(z.key)} && i.kind === 'requeue')`),
         `len ${qLenBefore} → ${env.evalIn(`currentTrainingQueue.length`)}`);
+      // order зеркалит items (инвариант ядра) — и до, и после undo «Забыл»:
+      // раньше undo вырезал requeue-копию из items, но оставлял призрак в order.
+      const mirrorExpr = `JSON.stringify(srsSession.order) === JSON.stringify(currentTrainingQueue.map(function (i) { return i.key; }))`;
+      t('session.order mirrors items with the requeue copy present', env.evalIn(mirrorExpr));
+      env.key('ArrowDown');
+      await env.tick(40);
+      t('undo removed the requeue ghost from order (mirror restored)', env.evalIn(mirrorExpr));
+      t('no requeue copy left for the undone key',
+        env.evalIn(`currentTrainingQueue.filter(function (i) { return i.key === ${JSON.stringify(z.key)} && i.kind === 'requeue'; }).length`) === 0);
+      // поток секции продолжается: следующий gradeVia просто переоценит восстановленный item
 
       // ← → again, 2 → hard, 3 → easy, → → easy
       await gradeVia(env, t, 'again', () => env.key('ArrowLeft'), "key 'ArrowLeft' → again");

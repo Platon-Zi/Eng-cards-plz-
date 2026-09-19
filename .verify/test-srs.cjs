@@ -2604,13 +2604,21 @@ describe('same-day anti-inflation guard (Easy twice in one day holds the level)'
     assert.equal(r2.sameDayRepeat, true);
     assert.ok(r2.warnings.includes('same_day_easy_hold'), 'warning для UI-тоста');
     assert.equal(r2.card.next_review_en_ru, SRS.addDays(TODAY, SRS.INTERVALS[3]), 'due пересчитан от сегодня по ТЕКУЩЕМУ уровню');
+    assert.equal(r2.card.last_review_en_ru, TODAY, 'same-day hold: штамп остаётся днём первого (честного) ответа');
   });
 
-  test('EASY на СЛЕДУЮЩИЙ день снова продвигает (guard не вечная заморозка)', () => {
+  test('EASY назавтра рано (hold), а на сроке продвигает — guard не вечная заморозка', () => {
     const r1 = SRS.applyAnswer(mkCard('sd3', { level_en_ru: 2, next_review_en_ru: TODAY }), D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r1.next.level, 3, 'день 0: L2→L3');
+    // Назавтра после подъёма для L3 (интервал 4) вспоминание РАННЕЕ — early-guard держит.
     const r2 = SRS.applyAnswer(r1.card, D, SRS.ANSWERS.EASY, tomorrow);
-    assert.equal(r2.next.level, 4, 'разнесённое по дням вспоминание растит уровень 3→4');
+    assert.equal(r2.next.level, 3, 'день 1: elapsed 1 < 4 → hold (это и есть защита от ежедневного cram)');
     assert.equal(r2.sameDayRepeat, false);
+    assert.equal(r2.earlyReview, true);
+    // На сроке (4 дня от последнего честного ответа) — нормальный рост.
+    const r3 = SRS.applyAnswer(r2.card, D, SRS.ANSWERS.EASY, SRS.addDays(TODAY, 4));
+    assert.equal(r3.next.level, 4, 'день 4: интервал созрел → рост 3→4');
+    assert.equal(r3.earlyReview, false);
   });
 
   test('Forgot →Easy в той же сессии НЕ взбирается обратно по лестнице', () => {
@@ -2640,5 +2648,141 @@ describe('same-day anti-inflation guard (Easy twice in one day holds the level)'
     assert.ok(!rH2.warnings.includes('same_day_easy_hold'), 'warning только для EASY');
     const rA = SRS.applyAnswer(rH2.card, D, SRS.ANSWERS.AGAIN, TODAY);
     assert.equal(rA.next.level, 1, 'AGAIN L3→L1 без изменений (lowMaxLevel=3)');
+  });
+});
+
+/* ============ Early-review guard: EASY до срока не поднимает уровень ============
+   Обобщение same-day guard (19.09): ежедневный cram группы поднимал слово по
+   ступени за сутки, ни разу не проверив его на настоящем интервале. Правило:
+   EASY продвигает только если elapsed >= INTERVALS[prevLevel] (слово созрело).
+   Due-очереди показывают карточку не раньше срока — обычная тренировка не затронута. */
+describe('early-review guard (Easy before the due day holds the level)', () => {
+  const D = 'en_ru';
+
+  test('ранний EASY (elapsed < интервала) держит уровень + warning + daysEarly', () => {
+    // L3: интервал 4 дня. Отвечали 2 дня назад → срок ещё не наступил.
+    const c = mkCard('er1', {
+      level_en_ru: 3,
+      next_review_en_ru: SRS.addDays(TODAY, 2),
+      last_review_en_ru: SRS.addDays(TODAY, -2)
+    });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r.next.level, 3, 'ранний Easy не поднимает L3');
+    assert.equal(r.outcome, 'hold');
+    assert.equal(r.earlyReview, true);
+    assert.equal(r.daysEarly, 2, 'INTERVALS[3]=4 − elapsed 2');
+    assert.ok(r.warnings.includes('early_easy_hold'), 'warning для UI-тоста');
+    assert.equal(r.card.next_review_en_ru, SRS.addDays(TODAY, 4), 'due пересчитан от сегодня по текущему уровню');
+    assert.equal(r.card.last_review_en_ru, SRS.addDays(TODAY, -2), 'held-ранний EASY штамп НЕ двигает: плановые часы идут от последнего честного ответа');
+  });
+
+  test('EASY ровно на сроке (elapsed === интервал) продвигает как обычно', () => {
+    const c = mkCard('er2', {
+      level_en_ru: 3,
+      next_review_en_ru: TODAY,
+      last_review_en_ru: SRS.addDays(TODAY, -4)
+    });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r.next.level, 4, 'созревшее слово растёт L3→L4');
+    assert.equal(r.outcome, 'advance');
+    assert.equal(r.earlyReview, false);
+    assert.ok(!r.warnings.includes('early_easy_hold'));
+  });
+
+  test('просроченный EASY (elapsed > интервала) тоже продвигает', () => {
+    const c = mkCard('er3', {
+      level_en_ru: 3,
+      next_review_en_ru: SRS.addDays(TODAY, -2),
+      last_review_en_ru: SRS.addDays(TODAY, -6)
+    });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r.next.level, 4, 'вспомнил позже срока — тем более рост');
+    assert.equal(r.earlyReview, false);
+  });
+
+  test('ежедневный cram больше не надувает лестницу: L2 держится при elapsed 1 < 2', () => {
+    const day0 = SRS.applyAnswer(mkCard('er4', { level_en_ru: 2, next_review_en_ru: TODAY }), D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(day0.next.level, 3, 'день 0: созрело (due сегодня) → L3');
+    const day1 = SRS.applyAnswer(day0.card, D, SRS.ANSWERS.EASY, SRS.addDays(TODAY, 1));
+    assert.equal(day1.next.level, 3, 'день 1: L3 требует 4 дня, elapsed 1 → hold');
+    const day2 = SRS.applyAnswer(day1.card, D, SRS.ANSWERS.EASY, SRS.addDays(TODAY, 2));
+    assert.equal(day2.next.level, 3, 'день 2: elapsed 2 < 4 → hold');
+    const day4 = SRS.applyAnswer(day2.card, D, SRS.ANSWERS.EASY, SRS.addDays(TODAY, 4));
+    assert.equal(day4.next.level, 4, 'день 4: от последнего ЧЕСТНОГО ответа (день 0) прошло 4 = INTERVALS[3] → L4');
+    assert.equal(day4.card.last_review_en_ru, SRS.addDays(TODAY, 4), 'зачтённый ответ двигает штамп');
+  });
+
+  test('ранний HARD морозит без early-warning (прежнее поведение)', () => {
+    const c = mkCard('er5', {
+      level_en_ru: 4,
+      next_review_en_ru: SRS.addDays(TODAY, 5),
+      last_review_en_ru: SRS.addDays(TODAY, -2)
+    });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.HARD, TODAY);
+    assert.equal(r.next.level, 4, 'hard всегда морозит');
+    assert.ok(!r.warnings.includes('early_easy_hold'), 'warning только для EASY');
+  });
+
+  test('ранний AGAIN сбрасывает как обычно — провал guard не отменяет', () => {
+    const c = mkCard('er6', {
+      level_en_ru: 4,
+      next_review_en_ru: SRS.addDays(TODAY, 5),
+      last_review_en_ru: SRS.addDays(TODAY, -2)
+    });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.AGAIN, TODAY);
+    assert.equal(r.next.level, 2, 'AGAIN L4→L2 независимо от срока');
+    assert.equal(r.outcome, 'reset');
+  });
+
+  test('без штампа last_review (старые данные) guard не срабатывает — совместимость', () => {
+    const c = mkCard('er7', { level_en_ru: 3, next_review_en_ru: SRS.addDays(TODAY, 3) });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
+    assert.equal(r.next.level, 4, 'нет истории — обычный подъём');
+    assert.equal(r.earlyReview, false);
+  });
+
+  test('same-day повтор имеет приоритет: same_day_easy_hold, не early', () => {
+    const c = mkCard('er8', { level_en_ru: 3, next_review_en_ru: TODAY, last_review_en_ru: TODAY });
+    const r = SRS.applyAnswer(c, D, SRS.ANSWERS.EASY, TODAY);
+    assert.ok(r.warnings.includes('same_day_easy_hold'));
+    assert.ok(!r.warnings.includes('early_easy_hold'), 'два hold-warning одновременно не выдаются');
+    assert.equal(r.sameDayRepeat, true);
+  });
+});
+
+/* ============ Инвариант «order зеркалит items» живёт и после мутаций сессии ============
+   Регрессия 19.09: sessionSkip при первом скипе двигал item в хвост, но ключ в order
+   оставался на старой позиции + дублировался в хвосте — массивы разъезжались. */
+describe('session order/items mirror invariant', () => {
+  const mirror = (s) => JSON.stringify(s.order) === JSON.stringify(s.items.map((i) => i.key));
+
+  test('skip → хвост, оба массива синхронны; второй skip → удаление, тоже синхронны', () => {
+    const items = [
+      SRS.makeItem({ id: 'a', word: 'a' }, 'en_ru', TODAY),
+      SRS.makeItem({ id: 'b', word: 'b' }, 'en_ru', TODAY),
+      SRS.makeItem({ id: 'c', word: 'c' }, 'en_ru', TODAY)
+    ];
+    const s = SRS.createSession(items, { today: TODAY });
+    assert.ok(mirror(s), 'после createSession order === items keys');
+    const r1 = SRS.sessionSkip(s, 'a:en_ru');
+    assert.equal(r1, 'moved-to-tail');
+    assert.ok(mirror(s), 'после первого skip order зеркалит items (регрессия призрака)');
+    assert.equal(s.order[s.order.length - 1], 'a:en_ru', 'ключ в хвосте order');
+    const r2 = SRS.sessionSkip(s, 'a:en_ru');
+    assert.equal(r2, 'removed');
+    assert.ok(mirror(s), 'после второго skip (removed) зеркало цело');
+    assert.equal(s.items.length, 2);
+  });
+
+  test('requeue и ensure тоже сохраняют зеркало', () => {
+    const items = [
+      SRS.makeItem({ id: 'a', word: 'a' }, 'en_ru', TODAY),
+      SRS.makeItem({ id: 'b', word: 'b' }, 'en_ru', TODAY)
+    ];
+    const s = SRS.createSession(items, { today: TODAY });
+    SRS.sessionRequeue(s, s.items[0]);
+    assert.ok(mirror(s), 'requeue вставил копию в оба массива на одну позицию');
+    SRS.sessionEnsure(s, { id: 'a', word: 'a', status: 'ACTIVE' }, ['ru_en'], TODAY, 'learn');
+    assert.ok(mirror(s), 'ensure вставил вторую сторону синхронно');
   });
 });

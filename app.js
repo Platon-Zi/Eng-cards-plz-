@@ -2089,6 +2089,10 @@ async function submitAnswer(answerToken) {
     // Антиинфляционный guard SRS: второе «Легко» за день — это краткосрочная
     // память, уровень остаётся прежним. Говорим честно, чтобы hold не выглядел багом.
     showToast(`⏳ “${card.word}” already passed today — held at L${nextInfo.level}. Level-ups need a recall on a later day.`, 'info');
+  } else if (result.warnings && result.warnings.includes('early_easy_hold')) {
+    // Ранний повтор (cram/группа до наступления срока): практика засчитана,
+    // но уровень растёт только когда слово вспомнили НА интервале или позже.
+    showToast(`⏳ “${card.word}” reviewed ${result.daysEarly}d early — held at L${nextInfo.level}. It levels up when recalled on schedule.`, 'info');
   } else {
     showToast(`${meta.icon} “${card.word}” held at L${nextInfo.level}, next in ${nextInfo.intervalDays}d`, 'info');
   }
@@ -2162,7 +2166,14 @@ async function undoPreviousCard() {
     if (Array.isArray(srsSession.items)) {
       for (let i = srsSession.items.length - 1; i > frame.itemIndex; i--) {
         const it = srsSession.items[i];
-        if (it && it.key === frame.itemKey && it.kind === 'requeue') srsSession.items.splice(i, 1);
+        if (it && it.key === frame.itemKey && it.kind === 'requeue') {
+          srsSession.items.splice(i, 1);
+          // Инвариант ядра: srsSession.order зеркалит items по индексу (проверяется
+          // тестами). Без этой стрики undo «Забыл» оставлял в order призрак ключа.
+          if (Array.isArray(srsSession.order) && srsSession.order.length === srsSession.items.length + 1) {
+            srsSession.order.splice(i, 1);
+          }
+        }
       }
     }
   }
