@@ -207,7 +207,7 @@ const $ = sel => d.querySelector(sel);
     var title = function (id) { var e = document.getElementById(id); return e ? e.title : null; };
     var bg = function (id) { var e = document.getElementById(id); return (e && e.style && e.style.background) || ''; };
     var input = document.getElementById('dm-goal-input');
-    var firstTile = document.querySelector('#daily-mission .dm-grid .dm-tile');
+    var firstTile = document.querySelector('#daily-mission .dm-tile');
     return JSON.stringify({
       due: dueItems.length,
       expectedCritical: criticalItems.length,

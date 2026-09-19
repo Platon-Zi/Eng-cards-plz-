@@ -4099,19 +4099,18 @@ input, textarea,
 
 /* ============================================================
    TODAY'S MISSION (19.09): дневной минимум на главном экране.
-   Минимализм (фидбек пользователя): у плитки только подпись и
-   кольцевая диаграмма с цифрой в центре — заполнение = прогресс дня,
-   всё выполнено → кольцо полное и зелёное. Детали — в title-тултипе.
+   Одна тонкая приборная полоска (фидбек «меньше раздутым»):
+   заголовок+дата слева, два кольца-плитки и цель — в одну линию.
    Только токены темы (css_check запрещает литеральные hex).
    ============================================================ */
-.daily-mission { padding: 12px 16px; }
-.daily-mission .section-header h3 { font-size: 15px; }
-.dm-head { display: flex; justify-content: space-between; align-items: baseline; }
-.dm-date { color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
-.dm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 9px; }
+.daily-mission { padding: 9px 14px; }
+.dm-strip { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dm-heading { display: flex; align-items: baseline; gap: 8px; margin-right: auto; }
+.dm-heading h3 { font-size: 14px; margin: 0; }
+.dm-date { color: var(--text-muted); font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
 .dm-tile {
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 10px;
   background: rgba(var(--overlay-rgb), 0.04);
   border: 1px solid rgba(var(--overlay-rgb), 0.09);
   cursor: pointer; user-select: none;
@@ -4120,31 +4119,28 @@ input, textarea,
 .dm-tile:hover {
   transform: translateY(-1px);
   border-color: rgba(var(--accent-primary-rgb), 0.5);
-  box-shadow: 0 6px 16px rgba(var(--accent-primary-rgb), 0.16);
+  box-shadow: 0 5px 14px rgba(var(--accent-primary-rgb), 0.16);
 }
 .dm-tile:focus-visible { outline: 2px solid rgba(var(--accent-primary-rgb), 0.8); outline-offset: 2px; }
 .dm-tile:active { transform: translateY(0) scale(0.985); }
 .dm-ring {
-  width: 52px; height: 52px; border-radius: 50%; flex: 0 0 auto;
+  width: 38px; height: 38px; border-radius: 50%; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center; position: relative;
 }
-.dm-ring::before { content: ''; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg-card); }
-.dm-ring-num { position: relative; z-index: 1; font-weight: 800; font-size: 12px; color: var(--text-main); letter-spacing: -0.02em; }
-.dm-label { font-size: 12px; font-weight: 800; color: var(--text-soft); white-space: nowrap; }
+.dm-ring::before { content: ''; position: absolute; inset: 4.5px; border-radius: 50%; background: var(--bg-card); }
+.dm-ring-num { position: relative; z-index: 1; font-weight: 800; font-size: 10px; color: var(--text-main); letter-spacing: -0.03em; }
+.dm-label { font-size: 11.5px; font-weight: 800; color: var(--text-soft); white-space: nowrap; }
 .daily-mission.dm-review-done .dm-tile-review { border-color: rgba(var(--accent-green-rgb), 0.5); }
 .daily-mission.dm-review-done .dm-label-review { color: rgba(var(--accent-green-rgb), 1); }
 .daily-mission.dm-goal-reached .dm-tile-learn { border-color: rgba(var(--accent-green-rgb), 0.5); }
 .daily-mission.dm-goal-reached .dm-label-learn { color: rgba(var(--accent-green-rgb), 1); }
-.dm-goal-row {
-  display: flex; align-items: center; gap: 7px; margin-top: 9px;
-  font-size: 12px; color: var(--text-muted);
-}
+.dm-goal-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--text-muted); }
 .dm-goal-row label { font-weight: 700; }
 #dm-goal-input {
-  width: 62px; padding: 4px 7px; border-radius: 8px;
+  width: 54px; padding: 3px 6px; border-radius: 8px;
   border: 1px solid rgba(var(--overlay-rgb), 0.22);
   background: rgba(var(--overlay-rgb), 0.05);
-  color: var(--text-main); font-weight: 800; font-size: 12px;
+  color: var(--text-main); font-weight: 800; font-size: 11.5px;
 }
 #dm-goal-input:focus { outline: none; border-color: rgba(var(--accent-primary-rgb), 0.8); }
-.dm-goal-hint { font-size: 11px; }
+.dm-goal-hint { font-size: 10.5px; }

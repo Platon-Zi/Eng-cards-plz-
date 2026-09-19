@@ -130,11 +130,11 @@
              Рендер/wiring: datacare.js renderDailyMission()/wireDailyMission().
              ============================================================ -->
         <div class="section-card daily-mission" id="daily-mission">
-          <div class="section-header dm-head">
-            <h3>📅 Today's Mission</h3>
-            <span class="dm-date" id="dm-date"></span>
-          </div>
-          <div class="dm-grid">
+          <div class="dm-strip">
+            <div class="dm-heading">
+              <h3>📅 Today's Mission</h3>
+              <span class="dm-date" id="dm-date"></span>
+            </div>
             <div class="dm-tile dm-tile-review" id="dm-review" role="button" tabindex="0" aria-label="Start the critical review session">
               <div class="dm-ring" id="dm-ring-review"><span class="dm-ring-num" id="dm-review-num">0</span></div>
               <div class="dm-label dm-label-review">🔥 Must-review</div>
@@ -143,11 +143,11 @@
               <div class="dm-ring" id="dm-ring-learn"><span class="dm-ring-num" id="dm-learn-num">0/15</span></div>
               <div class="dm-label dm-label-learn">🌱 New words</div>
             </div>
-          </div>
-          <div class="dm-goal-row">
-            <label for="dm-goal-input">Goal:</label>
-            <input type="number" id="dm-goal-input" min="1" max="200" step="1" value="15">
-            <span class="dm-goal-hint">new words / day</span>
+            <div class="dm-goal-row">
+              <label for="dm-goal-input">Goal:</label>
+              <input type="number" id="dm-goal-input" min="1" max="200" step="1" value="15">
+              <span class="dm-goal-hint">/ day</span>
+            </div>
           </div>
         </div>
 

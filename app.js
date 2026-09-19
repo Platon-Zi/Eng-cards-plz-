@@ -1719,6 +1719,12 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
     }
   }
 
+  // Отдельный скрипт отбора (VocabaCritical.select, datacare.js) уже отработал
+  // внутри buildQueueForMode — объявляем, что сессия не обычная Practice.
+  if (mode === 'critical' && items.length) {
+    showToast(`🔥 Critical minimum: the worst ${items.length} due words, most urgent first.`, 'info');
+  }
+
   if (!items.length) {
     if (mode === 'system' || mode === 'daily' || mode === 'practice' || mode === 'critical') {
       showToast('🎉 Nothing due — every review for today is done!', 'success');
