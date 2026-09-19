@@ -136,26 +136,18 @@
           </div>
           <div class="dm-grid">
             <div class="dm-tile dm-tile-review" id="dm-review" role="button" tabindex="0" aria-label="Start the critical review session">
-              <div class="dm-flame" id="dm-flame">🔥</div>
-              <div class="dm-text">
-                <div class="dm-title">Must-review today</div>
-                <div class="dm-value"><span id="dm-remaining">0</span> critical reviews</div>
-                <div class="dm-caption" id="dm-review-caption">The day's minimum — tap to start</div>
-              </div>
+              <div class="dm-ring" id="dm-ring-review"><span class="dm-ring-num" id="dm-review-num">0</span></div>
+              <div class="dm-label dm-label-review">🔥 Must-review</div>
             </div>
             <div class="dm-tile dm-tile-learn" id="dm-learn" role="button" tabindex="0" aria-label="Learn new words from the Bank">
-              <div class="dm-ring" id="dm-ring"><span class="dm-ring-pct" id="dm-ring-pct">0%</span></div>
-              <div class="dm-text">
-                <div class="dm-title">🌱 New words</div>
-                <div class="dm-value"><span id="dm-learned">0</span> of <span id="dm-goal-show">15</span> today</div>
-                <div class="dm-caption" id="dm-learn-caption">Tap to learn new words from the Bank</div>
-              </div>
+              <div class="dm-ring" id="dm-ring-learn"><span class="dm-ring-num" id="dm-learn-num">0/15</span></div>
+              <div class="dm-label dm-label-learn">🌱 New words</div>
             </div>
           </div>
           <div class="dm-goal-row">
-            <label for="dm-goal-input">Daily new-word goal:</label>
+            <label for="dm-goal-input">Goal:</label>
             <input type="number" id="dm-goal-input" min="1" max="200" step="1" value="15">
-            <span class="dm-goal-hint">words / day · adaptive review minimum is computed by the algorithm</span>
+            <span class="dm-goal-hint">new words / day</span>
           </div>
         </div>
 

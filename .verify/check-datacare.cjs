@@ -204,51 +204,59 @@ const $ = sel => d.querySelector(sel);
     var hist = (typeof appState !== 'undefined' && appState && appState.history) ? appState.history : ((window.LEITNER_DATA && LEITNER_DATA.history) || {});
     var day = hist[srsToday()] || {};
     var g = function (id) { var e = document.getElementById(id); return e ? e.textContent : null; };
+    var title = function (id) { var e = document.getElementById(id); return e ? e.title : null; };
+    var bg = function (id) { var e = document.getElementById(id); return (e && e.style && e.style.background) || ''; };
     var input = document.getElementById('dm-goal-input');
     var firstTile = document.querySelector('#daily-mission .dm-grid .dm-tile');
     return JSON.stringify({
       due: dueItems.length,
       expectedCritical: criticalItems.length,
       cap: window.VocabaCritical ? window.VocabaCritical.CAP : null,
-      rem: g('dm-remaining'),
-      caption: g('dm-review-caption'),
-      learned: g('dm-learned'),
+      revNum: g('dm-review-num'),
+      learnNum: g('dm-learn-num'),
+      reviewTitle: title('dm-review'),
+      learnTitle: title('dm-learn'),
       expectedLearned: Number(day.newWords) || 0,
-      ring: g('dm-ring-pct'),
       goalVal: input ? Number(input.value) : null,
       date: g('dm-date'),
       firstTileIsReview: !!(firstTile && firstTile.id === 'dm-review'),
       boundLearn: !!(document.getElementById('dm-learn') && document.getElementById('dm-learn').dataset.bound === '1'),
       boundReview: !!(document.getElementById('dm-review') && document.getElementById('dm-review').dataset.bound === '1'),
       boundInput: !!(input && input.dataset.bound === '1'),
-      ringBg: (document.getElementById('dm-ring') || { style: {} }).style.background || ''
+      ringRevBg: bg('dm-ring-review'),
+      ringLearnBg: bg('dm-ring-learn'),
+      reviewText: document.getElementById('dm-review').textContent || '',
+      learnText: document.getElementById('dm-learn').textContent || ''
     });
   })()`);
   const dmData = JSON.parse(dmRaw);
   rec('миссия: панель и обе плитки в разметке',
     !!$('#daily-mission') && !!$('#dm-learn') && !!$('#dm-review') && !!$('#dm-goal-input'));
   rec('миссия: повторения СЛЕВА, новые слова СПРАВА (порядок плиток)', dmData.firstTileIsReview === true);
-  rec('миссия: кнопка показывает КРИТИЧЕСКИЙ минимум, а не всю due-очередь',
-    dmData.rem === String(dmData.expectedCritical)
+  const dmTileLen = Math.max(
+    dmData.reviewText.replace(/\s+/g, ' ').trim().length,
+    dmData.learnText.replace(/\s+/g, ' ').trim().length
+  );
+  rec('миссия: плитки минималистичны — только цифра и подпись',
+    dmTileLen <= 22, `len=${dmTileLen} «${dmData.reviewText.replace(/\s+/g, ' ').trim()}»`);
+  rec('миссия: центр кольца review = долг дня (весь due)',
+    dmData.revNum === String(dmData.due), `${dmData.revNum} vs due ${dmData.due}`);
+  rec('миссия: критический минимум живёт в тултипе и ≤ CAP ≤ due',
+    /worst \d+/.test(dmData.reviewTitle || '')
       && dmData.expectedCritical <= dmData.cap
       && dmData.expectedCritical <= dmData.due,
-    `${dmData.rem} critical / ${dmData.due} due, cap ${dmData.cap}`);
-  rec('миссия: на сид-бэклоге срабатывает потолок (cap < due)',
-    dmData.expectedCritical === dmData.cap && dmData.due > dmData.cap,
-    `cap=${dmData.expectedCritical}, due=${dmData.due}`);
-  rec('миссия: подпись честная — «worst N of M due»',
-    /worst \d+ of \d+ due/.test(dmData.caption || ''), String(dmData.caption));
-  rec("миссия: новых слов сегодня = history[today].newWords (сид: 0)",
-    dmData.learned === String(dmData.expectedLearned), `${dmData.learned} vs ${dmData.expectedLearned}`);
-  rec('миссия: кольцо % = learned/goal',
-    dmData.ring === Math.min(100, Math.round((dmData.expectedLearned / dmData.goalVal) * 100)) + '%',
-    `${dmData.ring} при goal=${dmData.goalVal}`);
-  rec('миссия: conic-gradient кольца выставлен из JS', /conic-gradient/.test(dmData.ringBg), dmData.ringBg.slice(0, 60));
+    `${dmData.reviewTitle} | critical=${dmData.expectedCritical}, cap=${dmData.cap}, due=${dmData.due}`);
+  rec('миссия: центр кольца learn = «learned/goal»',
+    dmData.learnNum === dmData.expectedLearned + '/' + dmData.goalVal,
+    `${dmData.learnNum} при learned=${dmData.expectedLearned}, goal=${dmData.goalVal}`);
+  rec('миссия: оба кольца — conic-gradient из JS',
+    /conic-gradient/.test(dmData.ringRevBg) && /conic-gradient/.test(dmData.ringLearnBg),
+    dmData.ringRevBg.slice(0, 40) + ' / ' + dmData.ringLearnBg.slice(0, 40));
   rec('миссия: дефолтная цель 15, дата непустая', dmData.goalVal === 15 && !!dmData.date, `goal=${dmData.goalVal} date=${dmData.date}`);
   rec('миссия: плитки и input заваершены (dataset.bound)',
     dmData.boundLearn && dmData.boundReview && dmData.boundInput);
 
-  // смена цели: localStorage + перерисовка
+  // смена цели: localStorage + перерисовка центра кольца
   w.eval(`(function () {
     var i = document.getElementById('dm-goal-input');
     i.value = '25';
@@ -256,10 +264,10 @@ const $ = sel => d.querySelector(sel);
   })()`);
   const dm2 = JSON.parse(w.eval(`JSON.stringify({
     stored: localStorage.getItem('vocaba_daily_goal'),
-    show: document.getElementById('dm-goal-show').textContent
+    num: document.getElementById('dm-learn-num').textContent
   })`));
-  rec('миссия: цель 25 сохраняется в localStorage и перерисовывает панель',
-    dm2.stored === '25' && dm2.show === '25', JSON.stringify(dm2));
+  rec('миссия: цель 25 сохраняется и центр кольца становится «0/25»',
+    dm2.stored === '25' && dm2.num === '0/25', JSON.stringify(dm2));
   w.eval(`(function () {
     var i = document.getElementById('dm-goal-input');
     i.value = '15';

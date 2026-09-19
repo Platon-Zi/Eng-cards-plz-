@@ -447,7 +447,8 @@
     if (!panel) return;
     var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
     var goal = dmGoal();
-    var learned = Number(dmDay(today).newWords) || 0;
+    var day = dmDay(today);
+    var learned = Number(day.newWords) || 0;
     var dueItems = [];
     try {
       if (typeof SRS !== 'undefined' && typeof SRS.buildReviewQueue === 'function') {
@@ -459,34 +460,59 @@
     try {
       if (window.VocabaCritical) critical = window.VocabaCritical.select(dueItems, dmCards(), today).length;
     } catch (e) { critical = due; }
-    var pct = Math.min(100, Math.round((learned / goal) * 100));
+    // Закрыто сегодня повторений: сумма byDirection.total дневной истории.
+    // Любой ответ на созревшее слово двигает его next_review в будущее, поэтому
+    // completed/(completed+долг) — честная доля закрытого дневного объёма.
+    var completed = 0;
+    try {
+      var bd = day.byDirection || {};
+      ['en_ru', 'ru_en'].forEach(function (dir) {
+        completed += Number(bd[dir] && bd[dir].total) || 0;
+      });
+    } catch (e) {}
+
+    var learnPct = Math.min(100, Math.round((learned / goal) * 100));
+    var reviewPct = due === 0 ? 100 : Math.min(99, Math.round((completed / (completed + due)) * 100));
     var goalReached = learned >= goal;
 
     var dateEl = document.getElementById('dm-date');
     if (dateEl) dateEl.textContent = fmtDay(today);
 
-    var ring = document.getElementById('dm-ring');
-    if (ring) {
-      var ringColor = goalReached
-        ? dmAlpha('--accent-green-rgb', '16, 185, 129', 0.9)
-        : dmAlpha('--accent-primary-rgb', '99, 102, 241', 0.9);
-      var track = dmAlpha('--overlay-rgb', '128, 128, 128', 0.12);
-      ring.style.background = 'conic-gradient(' + ringColor + ' ' + (pct * 3.6) + 'deg, ' + track + ' 0deg)';
-    }
+    // Кольца: минимум текста — цифра в центре, прогресс fills the ring.
+    var track = dmAlpha('--overlay-rgb', '128, 128, 128', 0.12);
+    var ringPaint = function (id, pct, token, triplet) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      var color = dmAlpha(token, triplet, 0.9);
+      el.style.background = 'conic-gradient(' + color + ' ' + (pct * 3.6) + 'deg, ' + track + ' 0deg)';
+    };
+    ringPaint('dm-ring-review', reviewPct,
+      due === 0 ? '--accent-green-rgb' : '--accent-red-rgb',
+      due === 0 ? '16, 185, 129' : '239, 68, 68');
+    ringPaint('dm-ring-learn', learnPct,
+      goalReached ? '--accent-green-rgb' : '--accent-primary-rgb',
+      goalReached ? '16, 185, 129' : '99, 102, 241');
+
     var setTxt = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
-    setTxt('dm-ring-pct', pct + '%');
-    setTxt('dm-learned', String(learned));
-    setTxt('dm-goal-show', String(goal));
-    setTxt('dm-remaining', String(critical));
-    setTxt('dm-learn-caption', goalReached
-      ? '🎉 Goal reached! Learn more or rest — no pressure.'
-      : 'Tap to learn new words from the Bank');
-    setTxt('dm-review-caption', due === 0
-      ? '✅ All reviews done — sleep well!'
-      : (critical < due
-        ? ('The worst ' + critical + ' of ' + due + ' due — tap to start')
-        : "The day's minimum — tap to start"));
-    setTxt('dm-flame', due === 0 ? '✅' : '🔥');
+    setTxt('dm-review-num', String(due));
+    setTxt('dm-learn-num', learned + '/' + goal);
+
+    // Все подробности — в hover-тултипы плиток.
+    var reviewTile = document.getElementById('dm-review');
+    if (reviewTile) {
+      reviewTile.title = due === 0
+        ? 'All reviews done — sleep well!'
+        : (critical < due
+          ? (due + ' due · the session starts with the worst ' + critical + ' — tap to review')
+          : (due + ' due — tap to start'));
+    }
+    var learnTile = document.getElementById('dm-learn');
+    if (learnTile) {
+      learnTile.title = goalReached
+        ? ('Goal reached: ' + learned + ' of ' + goal + ' — tap to learn more')
+        : (learned + ' of ' + goal + ' new words today — tap to learn');
+    }
+
     panel.classList.toggle('dm-goal-reached', goalReached);
     panel.classList.toggle('dm-review-done', due === 0);
 
