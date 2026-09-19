@@ -122,6 +122,44 @@
         </div>
 
         <!-- ============================================================
+             TODAY'S MISSION (19.09, идея пользователя — datacare.js территория)
+             Дневной минимум под hero-кнопками: 🌱 цель по новым словам
+             (localStorage 'vocaba_daily_goal', дефолт 15) и 🔥 обязательное
+             повторение (адаптивный минимум = длина SRS review-очереди).
+             Плитки кликабельны: learn → Bank, review → system Practice.
+             Рендер/wiring: datacare.js renderDailyMission()/wireDailyMission().
+             ============================================================ -->
+        <div class="section-card daily-mission" id="daily-mission">
+          <div class="section-header dm-head">
+            <h3>📅 Today's Mission</h3>
+            <span class="dm-date" id="dm-date"></span>
+          </div>
+          <div class="dm-grid">
+            <div class="dm-tile dm-tile-learn" id="dm-learn" role="button" tabindex="0" aria-label="Learn new words from the Bank">
+              <div class="dm-ring" id="dm-ring"><span class="dm-ring-pct" id="dm-ring-pct">0%</span></div>
+              <div class="dm-text">
+                <div class="dm-title">🌱 New words</div>
+                <div class="dm-value"><span id="dm-learned">0</span> of <span id="dm-goal-show">15</span> today</div>
+                <div class="dm-caption" id="dm-learn-caption">Tap to learn new words from the Bank</div>
+              </div>
+            </div>
+            <div class="dm-tile dm-tile-review" id="dm-review" role="button" tabindex="0" aria-label="Start the mandatory review">
+              <div class="dm-flame" id="dm-flame">🔥</div>
+              <div class="dm-text">
+                <div class="dm-title">Must-review before bed</div>
+                <div class="dm-value"><span id="dm-remaining">0</span> reviews due now</div>
+                <div class="dm-caption" id="dm-review-caption">The day's minimum — tap to start</div>
+              </div>
+            </div>
+          </div>
+          <div class="dm-goal-row">
+            <label for="dm-goal-input">Daily new-word goal:</label>
+            <input type="number" id="dm-goal-input" min="1" max="200" step="1" value="15">
+            <span class="dm-goal-hint">words / day · adaptive review minimum is computed by the algorithm</span>
+          </div>
+        </div>
+
+        <!-- ============================================================
              KNOWLEDGE GROUPS PANEL (contract §5.3)
              Replaces the retired Leitner boxes visualizer entirely.
              CSS hooks: .kg-row > .kg-meta (.kg-icon / .kg-name / .kg-caption)

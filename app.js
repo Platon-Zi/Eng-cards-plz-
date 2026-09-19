@@ -2113,6 +2113,11 @@ async function submitAnswer(answerToken) {
   if (!h.byDirection[direction]) h.byDirection[direction] = { total: 0, correct: 0 };
   h.byDirection[direction].total = (h.byDirection[direction].total || 0) + 1;
   if (isCorrect) h.byDirection[direction].correct = (h.byDirection[direction].correct || 0) + 1;
+  // Today's Mission (19.09): сколько НОВЫХ слов введено в ротацию сегодня —
+  // активация из Банка считается один раз на слово (result.activated). Поле
+  // переживает merge истории (M5 забирает день целиком) и откат undo (снапшот).
+  // Единственный читатель — панель #daily-mission в datacare.js.
+  if (result.activated) h.newWords = (h.newWords || 0) + 1;
 
   // Аудит M2: активность/серия — с ПЕРВОГО зачтённого ответа (recordActivity
   // идемпотентна внутри дня). Честная сессия, брошенная до конца очереди,

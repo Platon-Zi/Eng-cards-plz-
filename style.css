@@ -4096,3 +4096,61 @@ input, textarea,
   from { background-position: 0% 0; }
   to { background-position: 200% 0; }
 }
+
+/* ============================================================
+   TODAY'S MISSION (19.09): дневной минимум на главном экране.
+   Две плитки под hero-кнопками: 🌱 цель по новым словам (кольцо
+   прогресса — conic-gradient ставится из JS по токенам темы) и
+   🔥 обязательное повторение (адаптивный минимум дня).
+   Только токены темы (css_check запрещает литеральные hex).
+   ============================================================ */
+.dm-head { display: flex; justify-content: space-between; align-items: baseline; }
+.dm-date { color: var(--text-muted); font-size: 12px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+.dm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+@media (max-width: 760px) { .dm-grid { grid-template-columns: 1fr; } }
+.dm-tile {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 12px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  border: 1px solid rgba(var(--overlay-rgb), 0.09);
+  cursor: pointer; user-select: none;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.dm-tile:hover {
+  transform: translateY(-2px);
+  border-color: rgba(var(--accent-primary-rgb), 0.5);
+  box-shadow: 0 8px 20px rgba(var(--accent-primary-rgb), 0.18);
+}
+.dm-tile:focus-visible { outline: 2px solid rgba(var(--accent-primary-rgb), 0.8); outline-offset: 2px; }
+.dm-tile:active { transform: translateY(0) scale(0.985); }
+.dm-ring {
+  width: 64px; height: 64px; border-radius: 50%; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center; position: relative;
+}
+.dm-ring::before { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: var(--bg-card); }
+.dm-ring-pct { position: relative; z-index: 1; font-weight: 800; font-size: 13px; color: var(--text-main); }
+.dm-flame {
+  width: 64px; height: 64px; flex: 0 0 auto; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 32px;
+  background: rgba(var(--accent-red-rgb), 0.13);
+}
+.daily-mission.dm-review-done .dm-flame { background: rgba(var(--accent-green-rgb), 0.15); }
+.daily-mission.dm-review-done .dm-tile-review { border-color: rgba(var(--accent-green-rgb), 0.45); }
+.dm-title { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); }
+.dm-value { font-size: 16px; font-weight: 800; color: var(--text-main); margin: 3px 0 2px; }
+.dm-caption { font-size: 12px; color: var(--text-muted); line-height: 1.35; }
+.daily-mission.dm-goal-reached .dm-tile-learn { border-color: rgba(var(--accent-green-rgb), 0.5); }
+.daily-mission.dm-goal-reached .dm-tile-learn .dm-value { color: rgba(var(--accent-green-rgb), 1); }
+.dm-goal-row {
+  display: flex; align-items: center; gap: 8px; margin-top: 12px; flex-wrap: wrap;
+  font-size: 13px; color: var(--text-muted);
+}
+.dm-goal-row label { font-weight: 700; }
+#dm-goal-input {
+  width: 72px; padding: 6px 8px; border-radius: 8px;
+  border: 1px solid rgba(var(--overlay-rgb), 0.22);
+  background: rgba(var(--overlay-rgb), 0.05);
+  color: var(--text-main); font-weight: 800; font-size: 13px;
+}
+#dm-goal-input:focus { outline: none; border-color: rgba(var(--accent-primary-rgb), 0.8); }
+.dm-goal-hint { font-size: 12px; }

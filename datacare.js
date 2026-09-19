@@ -361,6 +361,144 @@
     }
   }
 
+  /* ============ TODAY'S MISSION (19.09): дневной минимум на главном экране ============
+     Идея пользователя: под большими кнопками всегда видны ДВА обязательных
+     объёма дня — 🌱 минимум новых слов (настраиваемая цель, localStorage
+     'vocaba_daily_goal', дефолт 15) и 🔥 адаптивный минимум повторений
+     (всё, что созрело к данному моменту = длина SRS review-очереди; «без
+     этого не ложиться спать»). Плитки кликабельны: learn → Bank, review →
+     system Practice. Данные: history[today].newWords пишет app.js submitAnswer
+     при активации из Банка (result.activated). */
+  var DM_GOAL_KEY = 'vocaba_daily_goal';
+
+  function dmGoal() {
+    var v = 15;
+    try { v = parseInt(localStorage.getItem(DM_GOAL_KEY), 10); } catch (e) {}
+    if (!Number.isFinite(v) || v < 1) v = 15;
+    return Math.min(200, Math.max(1, v));
+  }
+
+  function dmCards() {
+    try {
+      if (typeof appState !== 'undefined' && appState && Object.prototype.toString.call(appState.cards) === '[object Array]') return appState.cards;
+    } catch (e) {}
+    return (window.LEITNER_DATA && LEITNER_DATA.cards) || [];
+  }
+
+  function dmDay(today) {
+    try {
+      var h = (typeof appState !== 'undefined' && appState && appState.history) ? appState.history
+        : ((window.LEITNER_DATA && LEITNER_DATA.history) || {});
+      return (h && h[today]) || {};
+    } catch (e) { return {}; }
+  }
+
+  function dmAlpha(token, triplet, alpha) {
+    try {
+      if (typeof themeRgba === 'function') return themeRgba(token, triplet, alpha);
+    } catch (e) {}
+    return 'rgba(' + triplet + ', ' + alpha + ')';
+  }
+
+  function renderDailyMission() {
+    var panel = document.getElementById('daily-mission');
+    if (!panel) return;
+    var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
+    var goal = dmGoal();
+    var learned = Number(dmDay(today).newWords) || 0;
+    var due = 0;
+    try {
+      if (typeof SRS !== 'undefined' && typeof SRS.buildReviewQueue === 'function') {
+        due = SRS.buildReviewQueue(dmCards(), today, {}).length;
+      }
+    } catch (e) {}
+    var pct = Math.min(100, Math.round((learned / goal) * 100));
+    var goalReached = learned >= goal;
+
+    var dateEl = document.getElementById('dm-date');
+    if (dateEl) dateEl.textContent = fmtDay(today);
+
+    var ring = document.getElementById('dm-ring');
+    if (ring) {
+      var ringColor = goalReached
+        ? dmAlpha('--accent-green-rgb', '16, 185, 129', 0.9)
+        : dmAlpha('--accent-primary-rgb', '99, 102, 241', 0.9);
+      var track = dmAlpha('--overlay-rgb', '128, 128, 128', 0.12);
+      ring.style.background = 'conic-gradient(' + ringColor + ' ' + (pct * 3.6) + 'deg, ' + track + ' 0deg)';
+    }
+    var setTxt = function (id, v) { var el = document.getElementById(id); if (el) el.textContent = v; };
+    setTxt('dm-ring-pct', pct + '%');
+    setTxt('dm-learned', String(learned));
+    setTxt('dm-goal-show', String(goal));
+    setTxt('dm-remaining', String(due));
+    setTxt('dm-learn-caption', goalReached
+      ? '🎉 Goal reached! Learn more or rest — no pressure.'
+      : 'Tap to learn new words from the Bank');
+    setTxt('dm-review-caption', due === 0
+      ? '✅ All reviews done — sleep well!'
+      : "The day's minimum — tap to start");
+    setTxt('dm-flame', due === 0 ? '✅' : '🔥');
+    panel.classList.toggle('dm-goal-reached', goalReached);
+    panel.classList.toggle('dm-review-done', due === 0);
+
+    var input = document.getElementById('dm-goal-input');
+    if (input && document.activeElement !== input) input.value = goal;
+  }
+
+  var dmWired = false;
+  function wireDailyMission() {
+    if (dmWired) return;
+    var learn = document.getElementById('dm-learn');
+    var review = document.getElementById('dm-review');
+    var input = document.getElementById('dm-goal-input');
+    if (!learn && !review && !input) return;
+    dmWired = true;
+    function go(mode) {
+      if (typeof startTrainingSession === 'function') startTrainingSession(mode);
+    }
+    [['dm-learn', 'learn'], ['dm-review', 'system']].forEach(function (pair) {
+      var el = document.getElementById(pair[0]);
+      if (!el) return;
+      el.addEventListener('click', function () { go(pair[1]); });
+      el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(pair[1]); }
+      });
+      el.dataset.bound = '1';
+    });
+    if (input) {
+      var commit = function () {
+        var v = parseInt(input.value, 10);
+        if (!Number.isFinite(v) || v < 1) v = 15;
+        v = Math.min(200, Math.max(1, v));
+        try { localStorage.setItem(DM_GOAL_KEY, String(v)); } catch (e) {}
+        input.value = v;
+        renderDailyMission();
+        if (typeof showToast === 'function') showToast('🎯 Daily goal set: ' + v + ' new words per day.', 'success');
+      };
+      input.addEventListener('change', commit);
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commit(); input.blur(); }
+      });
+      input.dataset.bound = '1';
+    }
+  }
+
+  function watchDashboardActivation() {
+    var sec = document.getElementById('screen-dashboard');
+    if (!sec) return;
+    if (typeof MutationObserver === 'function') {
+      var wasActive = sec.classList.contains('active');
+      new MutationObserver(function () {
+        var now = sec.classList.contains('active');
+        if (now && !wasActive) renderDailyMission();
+        wasActive = now;
+      }).observe(sec, { attributes: true, attributeFilter: ['class'] });
+    }
+    window.addEventListener('themechange', function () {
+      if (sec.classList.contains('active')) renderDailyMission();
+    });
+  }
+
   function renderStatsExtras() {
     try { renderOutcomes(); } catch (e) {}
     try { renderMasteryRibbon(); } catch (e) {}
@@ -390,6 +528,9 @@
     renderStats();
     watchStatsActivation();
     renderStatsExtras();
+    wireDailyMission();
+    watchDashboardActivation();
+    renderDailyMission();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

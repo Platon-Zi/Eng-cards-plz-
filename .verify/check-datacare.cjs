@@ -191,6 +191,68 @@ const $ = sel => d.querySelector(sel);
     }
   }
 
+  // ── 11. Today's Mission: дневной минимум на главном экране ──────────────
+  // srsToday уже зафиксирован §10 ('2026-09-19'); переключаем на dashboard и
+  // синхронно перерисовываем панель themechange-событием (listener на window).
+  w.eval(`switchScreen('dashboard'); window.dispatchEvent(new CustomEvent('themechange'));`);
+  const dmRaw = w.eval(`(function () {
+    var cards = (typeof appState !== 'undefined' && appState && Object.prototype.toString.call(appState.cards) === '[object Array]')
+      ? appState.cards : ((window.LEITNER_DATA && LEITNER_DATA.cards) || []);
+    var due = -1;
+    try { due = SRS.buildReviewQueue(cards, srsToday(), {}).length; } catch (e) {}
+    var hist = (typeof appState !== 'undefined' && appState && appState.history) ? appState.history : ((window.LEITNER_DATA && LEITNER_DATA.history) || {});
+    var day = hist[srsToday()] || {};
+    var g = function (id) { var e = document.getElementById(id); return e ? e.textContent : null; };
+    var input = document.getElementById('dm-goal-input');
+    return JSON.stringify({
+      due: due,
+      rem: g('dm-remaining'),
+      learned: g('dm-learned'),
+      expectedLearned: Number(day.newWords) || 0,
+      ring: g('dm-ring-pct'),
+      goalShow: g('dm-goal-show'),
+      goalVal: input ? Number(input.value) : null,
+      date: g('dm-date'),
+      boundLearn: !!(document.getElementById('dm-learn') && document.getElementById('dm-learn').dataset.bound === '1'),
+      boundReview: !!(document.getElementById('dm-review') && document.getElementById('dm-review').dataset.bound === '1'),
+      boundInput: !!(input && input.dataset.bound === '1'),
+      ringBg: (document.getElementById('dm-ring') || { style: {} }).style.background || ''
+    });
+  })()`);
+  const dmData = JSON.parse(dmRaw);
+  rec('миссия: панель и обе плитки в разметке',
+    !!$('#daily-mission') && !!$('#dm-learn') && !!$('#dm-review') && !!$('#dm-goal-input'));
+  rec('миссия: обязательное повторение = длина SRS review-очереди',
+    dmData.rem === String(dmData.due), `${dmData.rem} vs ${dmData.due}`);
+  rec('миссия: сид-база даёт ненулевой must-review (иначе проверка деградировала)',
+    dmData.due > 0, String(dmData.due));
+  rec("миссия: новых слов сегодня = history[today].newWords (сид: 0)",
+    dmData.learned === String(dmData.expectedLearned), `${dmData.learned} vs ${dmData.expectedLearned}`);
+  rec('миссия: кольцо % = learned/goal',
+    dmData.ring === Math.min(100, Math.round((dmData.expectedLearned / dmData.goalVal) * 100)) + '%',
+    `${dmData.ring} при goal=${dmData.goalVal}`);
+  rec('миссия: conic-gradient кольца выставлен из JS', /conic-gradient/.test(dmData.ringBg), dmData.ringBg.slice(0, 60));
+  rec('миссия: дефолтная цель 15, дата непустая', dmData.goalVal === 15 && !!dmData.date, `goal=${dmData.goalVal} date=${dmData.date}`);
+  rec('миссия: плитки и input заваершены (dataset.bound)',
+    dmData.boundLearn && dmData.boundReview && dmData.boundInput);
+  // смена цели: localStorage + перерисовка
+  w.eval(`(function () {
+    var i = document.getElementById('dm-goal-input');
+    i.value = '25';
+    i.dispatchEvent(new window.Event('change'));
+  })()`);
+  const dm2 = JSON.parse(w.eval(`JSON.stringify({
+    stored: localStorage.getItem('vocaba_daily_goal'),
+    show: document.getElementById('dm-goal-show').textContent
+  })`));
+  rec('миссия: цель 25 сохраняется в localStorage и перерисовывает панель',
+    dm2.stored === '25' && dm2.show === '25', JSON.stringify(dm2));
+  w.eval(`(function () {
+    var i = document.getElementById('dm-goal-input');
+    i.value = '15';
+    i.dispatchEvent(new window.Event('change'));
+  })()`);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);
