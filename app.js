@@ -1889,17 +1889,9 @@ if (typeof window !== 'undefined' && window.speechSynthesis) {
   }
 }
 
-function speakEnglish(text) {
-  if (!window.speechSynthesis || !text) return;
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  if (!englishVoice) loadVoices();
-  if (englishVoice) utt.voice = englishVoice;
-  utt.lang = 'en-US';
-  utt.rate = 0.88;
-  utt.pitch = 1;
-  window.speechSynthesis.speak(utt);
-}
+// Прежний дубликат speakEnglish() отсюда удалён: объявление ниже по файлу
+// (~4500) полностью перекрывало его в классическом скрипте, а rate 0.88 в нём
+// вводил в заблуждение при отладке скорости речи.
 
 function attachSpeakHandler(btn, textToSpeak) {
   if (!btn) return;
@@ -4505,9 +4497,11 @@ function speakUtteranceAsync(text, rate = 0.88, isLetter = false) {
 function speakEnglish(text) {
   if (!text) return;
   try { window.speechSynthesis.cancel(); } catch (e) {}
-  const rate = (typeof spellingState !== 'undefined' && spellingState.settings && Number.isFinite(+spellingState.settings.speechRate))
-    ? +spellingState.settings.speechRate : 0.88;
-  speakUtteranceAsync(text, rate, false);
+  // Карточки/словарь/примеры звучат с ОБЫЧНОЙ скоростью (1.0) — по запросу
+  // пользователя (19.09): прежнее 0.88 воспринималось как затянутое.
+  // Намеренно НЕ читаем spellingState.settings.speechRate: тот слайдер —
+  // учебный темп диктанта Spelling Studio и карточек касаться не должен.
+  speakUtteranceAsync(text, 1, false);
 }
 
 function startSpellingDictation() {
