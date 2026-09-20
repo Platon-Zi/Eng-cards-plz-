@@ -182,6 +182,16 @@ function mergeHistoryInto(target, incoming) {
       live.correct = Math.max(live.correct || 0, inc.correct || 0);
       if (!live.byAnswer && inc.byAnswer) live.byAnswer = Object.assign({}, inc.byAnswer);
       if (!live.byDirection && inc.byDirection) live.byDirection = Object.assign({}, inc.byDirection);
+      // Today's Mission (20.09): списки активированных/зачтённых новых слов не
+      // должны теряться при частичном merge (восстановление бэкапа) — иначе
+      // дневная цель и график New Words пересчитают слова дважды или потеряют.
+      if (!Array.isArray(live.activatedIds) && Array.isArray(inc.activatedIds)) {
+        live.activatedIds = inc.activatedIds.slice();
+      }
+      if (!Array.isArray(live.newWordIds) && Array.isArray(inc.newWordIds)) {
+        live.newWordIds = inc.newWordIds.slice();
+        live.newWords = Math.max(live.newWords || 0, inc.newWords || 0, live.newWordIds.length);
+      }
     }
   });
   return target;
@@ -2137,11 +2147,23 @@ async function submitAnswer(answerToken) {
   if (!h.byDirection[direction]) h.byDirection[direction] = { total: 0, correct: 0 };
   h.byDirection[direction].total = (h.byDirection[direction].total || 0) + 1;
   if (isCorrect) h.byDirection[direction].correct = (h.byDirection[direction].correct || 0) + 1;
-  // Today's Mission (19.09): сколько НОВЫХ слов введено в ротацию сегодня —
-  // активация из Банка считается один раз на слово (result.activated). Поле
-  // переживает merge истории (M5 забирает день целиком) и откат undo (снапшот).
-  // Единственный читатель — панель #daily-mission в datacare.js.
-  if (result.activated) h.newWords = (h.newWords || 0) + 1;
+  // Today's Mission — правило «выучено» (пользовательское, 20.09): новое слово
+  // засчитывается в дневную цель, только если оно отмечено EASY или HARD.
+  // Активация через AGAIN («забыл») выученным НЕ считается — но если слово
+  // вытянули позже в тот же день (requeue внутри сессии, повтор), оно будет
+  // засчитано тогда. Списки живут в дне истории: activatedIds (все активированные
+  // из Банка сегодня) и newWordIds (уже зачтённые). Оба переживают откат undo
+  // (undoFrame глубоко копирует день) и merge истории (M5 забирает день целиком).
+  // Читатели: #daily-mission и график New Words per Day (datacare.js).
+  if (!Array.isArray(h.activatedIds)) h.activatedIds = [];
+  if (!Array.isArray(h.newWordIds)) h.newWordIds = [];
+  if (result.activated && h.activatedIds.indexOf(card.id) === -1) h.activatedIds.push(card.id);
+  if (h.activatedIds.indexOf(card.id) !== -1
+      && h.newWordIds.indexOf(card.id) === -1
+      && (answer === SRS.ANSWERS.EASY || answer === SRS.ANSWERS.HARD)) {
+    h.newWordIds.push(card.id);
+    h.newWords = (h.newWords || 0) + 1;
+  }
 
   // Аудит M2: активность/серия — с ПЕРВОГО зачтённого ответа (recordActivity
   // идемпотентна внутри дня). Честная сессия, брошенная до конца очереди,

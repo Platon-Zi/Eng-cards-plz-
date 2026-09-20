@@ -82,6 +82,14 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **ВАЖНО для параллельной модели**: drawFallbackBarChart(canvas, labels, data, hoverIdx, colors, **unit**) — новый ОПЦИОНАЛЬНЫЙ 6-й параметр: единица подсчёта для тултипа (плюрализация +s). Без unit — прежние «review/reviews» (обратная совместимость зафиксирована тестом). redraw прокидывает colors И unit.
 - **Тесты §12 (8 проверок, 58→66)**: синтетика unit/плюрализации/redraw/обратной совместимости + БОЕВОЙ поток: клик #dm-learn → Space (flip) → '3' (easy) → активация банковского слова → switchScreen('stats') → themechange → график построен, tipFor(13)='1 new word', пустые дни '0 new words'. ИНЪЕКЦИИ в историю из w.eval НЕ работают (appState.history — мигрированная копия, bundle-let из отдельного eval не виден) — только боевые потоки или чтение через datacare.
 
+### 3h. Правило «выучено» для дневной цели (20.09, второй агент — НЕ ТЕРЯТЬ!)
+- **Пользовательское правило**: новое слово засчитывается в Today's Mission / New Words per Day, только если отмечено **EASY или HARD**. AGAIN при активации из Банка — НЕ выучено. Если слово вытянули позже В ТОТ ЖЕ день (session requeue после Again или повтор) — засчитывается тогда.
+- **Механика (app.js submitAnswer)**: в дне истории живут два списка — h.activatedIds (все активированные из Банка сегодня, result.activated) и h.newWordIds (уже зачтённые). Зачёт: id ∈ activatedIds ∧ id ∉ newWordIds ∧ answer ∈ {EASY, HARD} → newWords++. Старая строка `if (result.activated) h.newWords++` УДАЛЕНА — не возвращать.
+- **Undo** (#btn-undo-card / ↓): undoFrame глубоко копирует день истории (JSON) → списки и счётчик откатываются автоматически; отмотка + правильный ответ = слово засчитано (боевой тест §13).
+- **mergeHistoryInto**: частичный merge (live.total ≥ inc.total) добирает отсутствующие activatedIds/newWordIds из incoming (иначе восстановление бэкапа потеряло бы зачёт дня).
+- **Подсказка = AGAIN** (hintUsedForCurrentCard) → не засчитывается ✓ консистентно.
+- **Тесты §13 (7 проверок, 66→73)**: боевой поток — AGAIN на банковском → счётчик не дрогнул (1/15); undoPreviousCard() → 1/15; submitAnswer('easy') → 2/15; HARD на следующем → 3/15; график New Words синхронен (3 new words). Чтение счётчика через #dm-learn-num (appState-let из eval не виден).
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).

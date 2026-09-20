@@ -376,6 +376,50 @@ const $ = sel => d.querySelector(sel);
   rec('newwords: пустые дни — «0 new words»',
     /0 new words/.test(nwLive.tipOld || ''), String(nwLive.tipOld));
 
+  // ── 13. Правило «выучено» (20.09): Easy/Hard на новом слове — да, Again — нет ──
+  // Полностью боевой поток на реальных клавишах и функциях. afterAgain/afterUndo/
+  // afterEasy/afterHard читаются с кольца миссии (единственный видимый из eval
+  // источник: appState-let из отдельного eval недоступен).
+  rec('undo-кнопка «previous» в разметке тренировки', !!$('#btn-undo-card'));
+  const nwRule = JSON.parse(w.eval(`(function () {
+    var out = {};
+    function learnNum() {
+      switchScreen('dashboard');
+      window.dispatchEvent(new CustomEvent('themechange'));
+      return document.getElementById('dm-learn-num').textContent;
+    }
+    function key(k) { document.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true })); }
+    try {
+      out.before = learnNum();                                  // §12 оставил 1 выученное
+      document.getElementById('dm-learn').click();              // новая learn-сессия (банковское W1)
+      key(' '); key('1');                                       // flip + AGAIN → активация БЕЗ зачёта
+      out.afterAgain = learnNum();
+      switchScreen('training');
+      undoPreviousCard();                                       // отмотка «нажал не ту кнопку»
+      out.afterUndo = learnNum();
+      submitAnswer('easy');                                     // вытянули то же слово → зачёт
+      out.afterEasy = learnNum();
+      document.getElementById('dm-learn').click();              // новая learn-сессия (W2)
+      key(' '); key('2');                                       // flip + HARD → зачёт
+      out.afterHard = learnNum();
+    } catch (e) { out.crash = String(e); }
+    return JSON.stringify(out);
+  })()`));
+  rec('правило: старт — 1 выученное из §12', nwRule.before === '1/15' && !nwRule.crash, JSON.stringify(nwRule));
+  rec('правило: AGAIN на новом слове НЕ засчитывается', nwRule.afterAgain === '1/15', nwRule.afterAgain);
+  rec('правило: undo откатывает ответ целиком (счётчик не дрогнул)', nwRule.afterUndo === '1/15', nwRule.afterUndo);
+  rec('правило: EASY после отмотки засчитывает слово', nwRule.afterEasy === '2/15', nwRule.afterEasy);
+  rec('правило: HARD на новом слове засчитывается', nwRule.afterHard === '3/15', nwRule.afterHard);
+  // график New Words per Day отражает то же число
+  const nwChart = JSON.parse(w.eval(`(function () {
+    switchScreen('stats');
+    window.dispatchEvent(new CustomEvent('themechange'));
+    var c = document.getElementById('chart-newwords');
+    return JSON.stringify({ tip: c && c._chart ? c._chart.tipFor(13) : null });
+  })()`));
+  rec('график: сегодняшний столбец = 3 new words (синхронно с кольцом)',
+    /3 new words/.test(nwChart.tip || ''), String(nwChart.tip));
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);
