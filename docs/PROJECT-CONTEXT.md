@@ -106,6 +106,13 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Стили** (style.css, конец): `.btn-dict-stats` (копия btn-dict-edit в primary-тонах) + блок `.cs-*`; только токены; `.cs-modal` max-width 560px.
 - **Тесты** (check-datacare §14, 7 проверок → 80/80): 📊 у всех 198 карточек; клик = модалка с тем словом; 2 блока/12 сегментов/on = сумма уровней; lifetime-цифры = данные карточки (включая кламп); BANK = нотис без блоков; ✖ закрывает; Escape закрывает модалку И удерживает screen-dictionary (ловушка: сравнение `w.eval(...) === true` — eval возвращает boolean, не строку).
 
+### 3k. TASK PROMPT: явное задание на карточке (20.09, фидбек — НЕ ТЕРЯТЬ!)
+- **Проблема восприятия**: после перевода learn-очереди на пары (3i) пользователь ВСЁ РАВНО сообщил «идёт только англ→рус»: фронт RU→EN карточки в точности повторяет бэк предыдущей EN→RU, и пара читалась как ОДНА карточка «слово → его перевод». Мелкий чип направления в углу не спасал. Живой зонд подтвердил: рендеринг корректен (фронт RU, бэк EN, mode title переключается) — проблема была в читаемости задания.
+- **Решение**: `#card-task-prompt` (div над .card-word-row во фронтальной грани) — крупная uppercase-строка задания, ставится в renderCurrentCard по direction: en_ru → '🇬🇧 ➔ 🇷🇺   Translate to Russian', ru_en → '🇷🇺 ➔ 🇬🇧   Say it in English'. Работает ВО ВСЕХ режимах (learn, review, cram, single_word) — направление вопроса больше никогда не угадывается.
+- **Стили**: .card-task-prompt в конце style.css (12px, 800, uppercase, --text-muted).
+- **Тесты**: interact §14 +2 (429 всего): item 1 = /Translate to Russian/, после первой оценки item 2 (ru_en) = /Say it in English/. check.cjs id-покрытие: card-task-prompt есть в index.html.
+- **Важно**: id задан статично в index.html с дефолтным EN-текстом (EN-only UI); renderCurrentCard перезаписывает его на каждой карточке.
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).

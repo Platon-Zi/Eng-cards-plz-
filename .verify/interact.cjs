@@ -713,6 +713,9 @@ const dd = (n) => SRS.addDays(T, n);
     env2.click('#btn-hero-start-learn');
     await env2.tick(40);
     t('learn session started on the training screen', env2.activeScreen() === 'screen-training', env2.activeScreen());
+    t('learn item 1 (en_ru) carries an explicit task prompt',
+      /Translate to Russian/i.test(env2.document.getElementById('card-task-prompt').textContent),
+      env2.document.getElementById('card-task-prompt').textContent);
     const liveCards = env2.snapshotState().cards;
     const expected = SRS.buildLearnQueue(deepClone(liveCards), T, { seed: T, limit: SRS.DEFAULTS.learnBatchLimit });
     const actual = env2.evalJson(`JSON.stringify(currentTrainingQueue.map(i => i.key))`);
@@ -726,6 +729,9 @@ const dd = (n) => SRS.addDays(T, n);
       t('L0 answer promotes to L1 with due = today + 1', r1.live.level_en_ru === 1 && r1.live.next_review_en_ru === dd(1),
         `L${r1.live.level_en_ru} due ${r1.live.next_review_en_ru}`);
     }
+    t('learn item 2 (ru_en) flips the task prompt to Say it in English',
+      /Say it in English/i.test(env2.document.getElementById('card-task-prompt').textContent),
+      env2.document.getElementById('card-task-prompt').textContent);
     await gradeVia(env2, t, 'easy', () => env2.click(ANSWER_BTNS.easy), 'learn[ru_en] easy');
     t('learn session finished → dashboard', env2.activeScreen() === 'screen-dashboard', env2.activeScreen());
     const t7 = env2.card('gv_t7');

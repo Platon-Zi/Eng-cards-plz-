@@ -1871,6 +1871,17 @@ function renderCurrentCard() {
   const phoneticEl = document.getElementById('card-phonetic-text');
   const modeTitleEl = document.getElementById('train-mode-title');
 
+  // (20.09, фидбек пользователя) Явный текст задания над промптом. В learn-паре
+  // фронт RU→EN карточки дублирует бэк предыдущей, и пара читалась как
+  // «слово → его перевод» вместо двустороннего заучивания. Задание однозначно
+  // говорит, в какую сторону сейчас спрашивают (важно и в review-режимах).
+  const taskPromptEl = document.getElementById('card-task-prompt');
+  if (taskPromptEl) {
+    taskPromptEl.textContent = (direction === 'en_ru')
+      ? '🇬🇧 ➔ 🇷🇺   Translate to Russian'
+      : '🇷🇺 ➔ 🇬🇧   Say it in English';
+  }
+
   if (direction === 'en_ru') {
     if (modeTitleEl) modeTitleEl.textContent = 'Mode: ENG ➔ RUS';
     document.getElementById('card-word-text').textContent = card.word;
