@@ -490,6 +490,16 @@ const $ = sel => d.querySelector(sel);
     w.eval(`document.getElementById('modal-card-stats').classList.contains('hidden')`) === true
       && w.eval(`document.getElementById('screen-dictionary').classList.contains('active')`) === true);
 
+  // ── 15. Learn-батч: банк в словах, сессия в карточках (объясняющий тост) ──
+  w.eval(`startTrainingSession('learn');`);
+  const learnToast = String(w.eval(`document.getElementById('toast-container').textContent`));
+  const bt = learnToast.match(/Learn batch: (\d+) of (\d+) Bank words · (\d+) cards/);
+  rec('learn: тост объявляет батч (N of M Bank words · K cards)', !!bt, learnToast.slice(0, 140));
+  rec('learn: карточек вдвое больше слов, банк больше батча',
+    !!bt && Number(bt[3]) === Number(bt[1]) * 2 && Number(bt[2]) > Number(bt[1]),
+    bt ? bt.slice(1).join(' / ') : 'no match');
+  w.eval(`switchScreen('dashboard');`);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

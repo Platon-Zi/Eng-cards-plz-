@@ -1742,6 +1742,18 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
     showToast(`🔥 Critical minimum: the worst ${items.length} due words, most urgent first.`, 'info');
   }
 
+  // (20.09, вопрос пользователя «в банке 87 слов, а тут только 40») Разные
+  // единицы: банк считает СЛОВА, а learn-сессия берёт батч из 20 слов и
+  // показывает КАРТОЧКИ — их вдвое больше (каждое слово с двух сторон).
+  // Одна строка объясняет батч, если в банке остались слова сверх него.
+  if (mode === 'learn' && items.length) {
+    const bankCount = appState.cards.filter(c => SRS.isBank(c)).length;
+    const batchWords = Math.ceil(items.length / 2);
+    if (bankCount > batchWords) {
+      showToast(`🌱 Learn batch: ${batchWords} of ${bankCount} Bank words · ${items.length} cards (each word from both sides).`, 'info');
+    }
+  }
+
   if (!items.length) {
     if (mode === 'system' || mode === 'daily' || mode === 'practice' || mode === 'critical') {
       showToast('🎉 Nothing due — every review for today is done!', 'success');

@@ -113,6 +113,11 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Тесты**: interact §14 +2 (429 всего): item 1 = /Translate to Russian/, после первой оценки item 2 (ru_en) = /Say it in English/. check.cjs id-покрытие: card-task-prompt есть в index.html.
 - **Важно**: id задан статично в index.html с дефолтным EN-текстом (EN-only UI); renderCurrentCard перезаписывает его на каждой карточке.
 
+### 3l. Learn-батч: объясняющий тост (20.09, вопрос пользователя — НЕ ТЕРЯТЬ!)
+- **Вопрос пользователя**: «в банке написано 87 слов, а когда захожу — только 40». Ответ: разные единицы. Банк считает СЛОВА; learn-сессия берёт батч `DEFAULTS.learnBatchLimit = 20` слов и показывает КАРТОЧКИ — 20 × 2 направления = 40 (счётчик «1 / 40»). Остальные слова ждут следующих сессий — это защита от зубрёжки 174 карточек за раз, согласованная с дневной целью (15 слов ≤ батч 20).
+- **Тост** (app.js, startTrainingSession, сразу после critical-тоста): только mode==='learn' и только если bankCount > batchWords: `🌱 Learn batch: 20 of 87 Bank words · 40 cards (each word from both sides).` Слова = ceil(items/2), банк = appState.cards.filter(SRS.isBank).
+- **Тест** (check-datacare §15, → 82/82): startTrainingSession('learn') на фиксированных часах; regex по toast-container `Learn batch: (N) of (M) Bank words · (K) cards`; K = N×2, M > N. ВАЖНО: toast-container НАКАПЛИВАЕТ тосты — regex может сматчить ранний тост той же сессии дня (в тесте это допустимо: соотношения чисел инвариантны).
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).
