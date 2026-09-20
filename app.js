@@ -2692,7 +2692,10 @@ function setupEventHandlers() {
         document.getElementById('modal-edit-card'),
         document.getElementById('modal-group-detail'),
         document.getElementById('modal-group-words'),
-        document.getElementById('modal-manage-group-words')
+        document.getElementById('modal-manage-group-words'),
+        // (20.09) Модалка личной статистики карточки — инжектируется datacare.js
+        // лениво; до первого открытия её нет в DOM (find ниже терпит null).
+        document.getElementById('modal-card-stats')
       ];
       const openModal = modals.find(m => m && !m.classList.contains('hidden'));
       if (openModal) {
@@ -3409,6 +3412,7 @@ function renderDictionary() {
           <span class="badge grp-badge grp-${gl}" title="${inBank ? 'Not activated yet — no review dates' : 'Group is derived from the weaker direction'}">${escapeHtml(inBank ? '🏦 Bank' : String(gmeta.en || group))}</span>
         </div>
         <div class="dict-card-actions">
+          <button class="btn-dict-stats" title="Personal stats of this card">📊 Stats</button>
           <button class="btn-dict-edit">✏️ Edit</button>
           <button class="btn-dict-delete">🗑️ Delete</button>
         </div>
@@ -3417,7 +3421,7 @@ function renderDictionary() {
 
     // Клик по карточке → тренировка этого слова ОБОИМИ сторонами.
     cardEl.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete') || e.target.closest('.btn-speak')) return;
+      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete') || e.target.closest('.btn-dict-stats') || e.target.closest('.btn-speak')) return;
       startTrainingSession('single_word', null, card.id);
     });
 
@@ -3428,6 +3432,21 @@ function renderDictionary() {
       e.stopPropagation();
       openEditModal(card);
     });
+
+    // Личная статистика карточки (20.09): модалку рисует модуль VocabaCardStats
+    // из datacare.js (территория второго агента) — с graceful-фолбэком.
+    const statsBtn = cardEl.querySelector('.btn-dict-stats');
+    if (statsBtn) {
+      statsBtn.dataset.cardId = card.id;
+      statsBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (typeof window.VocabaCardStats !== 'undefined' && typeof window.VocabaCardStats.open === 'function') {
+          window.VocabaCardStats.open(card.id);
+        } else {
+          showToast('Card stats module is not available.', 'info');
+        }
+      });
+    }
 
     cardEl.querySelector('.btn-dict-delete').addEventListener('click', async (e) => {
       e.stopPropagation();

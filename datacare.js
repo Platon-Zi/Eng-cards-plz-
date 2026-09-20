@@ -627,6 +627,198 @@
     if (sec && sec.classList.contains('active')) renderStatsExtras();
   }
 
+  /* ============ CARD STATS (20.09): личная статистика карточки из Dictionary ============
+     Идея пользователя: рядом с «Edit»/«Delete» кнопка 📊 открывает досье слова —
+     уровни обоих направлений (полоса L1..L6 в групповых цветах), даты следующего
+     и последнего повторения с человеческой относительностью, темп, lifetime
+     ответы/забывания и процент успеха. Модалка ИНЪЕКТИРУЕТСЯ в body этим модулем
+     (в index.html её нет — фича целиком живёт в datacare.js); единственный вход
+     из app.js — window.VocabaCardStats.open(cardId) по клику .btn-dict-stats. */
+  function csEsc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function csToday() {
+    return (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
+  }
+
+  function csCards() {
+    try {
+      if (typeof appState !== 'undefined' && appState && Object.prototype.toString.call(appState.cards) === '[object Array]') return appState.cards;
+    } catch (e) {}
+    return (window.LEITNER_DATA && LEITNER_DATA.cards) || [];
+  }
+
+  function csFindCard(cardId) {
+    var cards = csCards();
+    for (var i = 0; i < cards.length; i++) { if (cards[i] && cards[i].id === cardId) return cards[i]; }
+    return null;
+  }
+
+  function csIsDate(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); }
+
+  function csDirBlock(card, dir, today) {
+    var meta = {}, level = 0, due = null, last = null;
+    try {
+      meta = SRS.DIRECTION_META[dir] || {};
+      level = Number(card[SRS.levelKey(dir)]) || 0;
+      due = card[SRS.dueKey(dir)];
+      last = card['last_review_' + dir];
+    } catch (e) {}
+    var gname = '';
+    try { gname = SRS.groupForLevel(level); } catch (e) {}
+    var segs = '';
+    for (var l = 1; l <= 6; l++) {
+      var on = l <= level;
+      var style = '';
+      if (on) {
+        var g = '';
+        try { g = String(SRS.groupForLevel(l)).toLowerCase(); } catch (e) {}
+        style = g ? ' style="background: rgba(var(--grp-' + g + '-rgb), 0.95);"' : '';
+      }
+      segs += '<div class="cs-seg' + (on ? ' on' : '') + '"' + style + '></div>';
+    }
+    var dueTxt = '—', dueCls = '';
+    if (csIsDate(due)) {
+      var n = 0;
+      try { n = -SRS.diffDays(today, due); } catch (e) {}
+      if (n < 0) { dueTxt = fmtDay(due) + ' · ' + (-n) + ' days overdue'; dueCls = ' overdue'; }
+      else if (n === 0) { dueTxt = fmtDay(due) + ' · today'; dueCls = ' due-now'; }
+      else if (n === 1) { dueTxt = fmtDay(due) + ' · tomorrow'; }
+      else { dueTxt = fmtDay(due) + ' · in ' + n + ' days'; }
+    }
+    var lastTxt = 'no record yet';
+    if (csIsDate(last)) {
+      var el = 0;
+      try { el = -SRS.diffDays(last, today); } catch (e) {}
+      lastTxt = fmtDay(last) + (el === 0 ? ' · today' : ' · ' + el + ' days ago');
+    }
+    var interval = 0;
+    try { interval = Number(SRS.INTERVALS[Math.max(0, Math.min(6, level))]) || 0; } catch (e) {}
+    var pace = (level > 0 && interval > 0)
+      ? ('one review every ' + interval + ' day' + (interval === 1 ? '' : 's') + ' at L' + level)
+      : '—';
+    var h = '<div class="cs-dirblock">';
+    h += '<div class="cs-dirhead"><span>' + csEsc(meta.flag || '') + ' ' + csEsc(meta.full || dir) + '</span>'
+      +  '<span class="cs-dirlevel">Level ' + level + (gname ? ' · ' + csEsc(gname) : '') + '</span></div>';
+    h += '<div class="cs-levelbar">' + segs + '</div>';
+    h += '<div class="cs-rows">';
+    h += '<span class="cs-k">Next review</span><span class="cs-v' + dueCls + '">' + csEsc(dueTxt) + '</span>';
+    h += '<span class="cs-k">Last recall</span><span class="cs-v">' + csEsc(lastTxt) + '</span>';
+    h += '<span class="cs-k">Pace</span><span class="cs-v">' + csEsc(pace) + '</span>';
+    h += '</div></div>';
+    return h;
+  }
+
+  function csRenderBody(card) {
+    var today = csToday();
+    var inBank = true, group = 'BANK';
+    try { inBank = SRS.isBank(card); group = String(SRS.derivedGroup(card)); } catch (e) {}
+    var pos = '';
+    try { pos = SRS.posText(card.part_of_speech != null ? card.part_of_speech : card.partOfSpeech) || ''; } catch (e) {}
+    var html = '<div class="cs-wordline">';
+    html += '<span class="cs-word">' + csEsc(card.word) + '</span>';
+    html += '<button class="btn-speak" id="cs-speak" title="Listen to pronunciation" aria-label="Listen to word">🔊</button>';
+    if (card.phonetic && String(card.phonetic).trim() !== '') html += '<span class="cs-phonetic">' + csEsc(card.phonetic) + '</span>';
+    html += '</div>';
+    html += '<div class="cs-translation">' + csEsc(card.translation) + '</div>';
+    html += '<div class="cs-meta">';
+    if (pos) html += '<span class="badge pos-other" style="text-transform: capitalize;">' + csEsc(pos) + '</span>';
+    html += '<span class="badge grp-badge grp-' + csEsc(group.toLowerCase()) + '">' + csEsc(inBank ? '🏦 Bank' : group) + '</span>';
+    if (csIsDate(card.created_at)) {
+      var age = 0;
+      try { age = -SRS.diffDays(String(card.created_at), today); } catch (e) {}
+      html += '<span>Added ' + (age <= 0 ? 'today' : age + ' days ago') + '</span>';
+    }
+    if (card.batch_name) html += '<span>Batch: ' + csEsc(card.batch_name) + '</span>';
+    html += '</div>';
+
+    if (inBank) {
+      html += '<div class="cs-bank-note">🏦 Resting in the Bank — not studied yet. Any Learn session (or the 🌱 mission tile) activates it, and the full per-direction stats will appear here.</div>';
+    } else {
+      html += csDirBlock(card, 'en_ru', today);
+      html += csDirBlock(card, 'ru_en', today);
+    }
+
+    var rc = Number(card.review_count) || 0;
+    var fc = Number(card.fail_count) || 0;
+    // Кламп 0..100: в старых/посевных данных fail_count может превышать
+    // review_count (счётчики велись раздельно) — отрицательный процент не показываем.
+    var pct = rc > 0 ? Math.min(100, Math.max(0, Math.round(((rc - fc) / rc) * 100))) : null;
+    html += '<div class="cs-lifetime">';
+    html += '<div class="cs-lifetime-head">Lifetime · both directions</div>';
+    html += '<div class="cs-rows">';
+    html += '<span class="cs-k">Answers given</span><span class="cs-v cs-answers-val">' + rc + '</span>';
+    html += '<span class="cs-k">Times forgotten</span><span class="cs-v">' + fc + '</span>';
+    html += '<span class="cs-k">Success rate</span><span class="cs-v cs-success-val">' + (pct === null ? '—' : pct + '%') + '</span>';
+    html += '</div>';
+    if (pct !== null) html += '<div class="cs-success-track"><div class="cs-success-fill" style="width:' + pct + '%;"></div></div>';
+    html += '</div>';
+    return html;
+  }
+
+  function csClose() {
+    var overlay = document.getElementById('modal-card-stats');
+    if (overlay) overlay.classList.add('hidden');
+  }
+
+  function csEnsureModal() {
+    // Скелет модалки статично живёт в index.html (id покрыт check.cjs);
+    // фолбэк-инъекция сохраняет модуль самодостаточным, если разметки нет.
+    var overlay = document.getElementById('modal-card-stats');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'modal-card-stats';
+      overlay.className = 'modal-overlay hidden';
+      overlay.innerHTML =
+        '<div class="modal-content glass-card cs-modal" role="dialog" aria-modal="true" aria-labelledby="cs-title">' +
+          '<div class="modal-header">' +
+            '<h3 id="cs-title">📊 Card Stats</h3>' +
+            '<button class="btn-close-modal" id="cs-close" aria-label="Close">✖</button>' +
+          '</div>' +
+          '<div id="cs-body" class="cs-body"></div>' +
+        '</div>';
+      document.body.appendChild(overlay);
+    }
+    if (overlay.dataset.csBound === '1') return;
+    overlay.dataset.csBound = '1';
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) csClose(); });
+    var closeBtn = document.getElementById('cs-close');
+    if (closeBtn) closeBtn.addEventListener('click', csClose);
+    // Страховка от Escape: app.js закрывает модалку своим capture-слушателем
+    // window (modal-card-stats включён в его priority-1 список), а этот
+    // документ-слушатель гасит всплытие, если модалка ещё видима.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !overlay.classList.contains('hidden')) {
+        e.stopPropagation();
+        csClose();
+      }
+    }, true);
+  }
+
+  function csOpen(cardId) {
+    csEnsureModal();
+    var overlay = document.getElementById('modal-card-stats');
+    var body = document.getElementById('cs-body');
+    if (!overlay || !body) return;
+    var card = csFindCard(cardId);
+    if (!card) {
+      body.innerHTML = '<p class="cs-empty">Card not found — it may have been deleted.</p>';
+      overlay.classList.remove('hidden');
+      return;
+    }
+    body.innerHTML = csRenderBody(card);
+    overlay.classList.remove('hidden');
+    var speak = document.getElementById('cs-speak');
+    if (speak && typeof attachSpeakHandler === 'function') {
+      try { attachSpeakHandler(speak, card.word); } catch (e) {}
+    }
+  }
+
+  window.VocabaCardStats = { open: csOpen, close: csClose };
+
   function init() {
     wire();
     watchActivation();

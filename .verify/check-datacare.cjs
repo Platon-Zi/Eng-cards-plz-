@@ -420,6 +420,76 @@ const $ = sel => d.querySelector(sel);
   rec('график: сегодняшний столбец = 3 new words (синхронно с кольцом)',
     /3 new words/.test(nwChart.tip || ''), String(nwChart.tip));
 
+  // ── 14. Card Stats: личная статистика карточки из Dictionary (📊) ────────
+  w.eval(`switchScreen('dictionary'); renderDictionary();`);
+  const csOpen = JSON.parse(w.eval(`(function () {
+    var out = {};
+    var btns = document.querySelectorAll('.btn-dict-stats');
+    out.btnCount = btns.length;
+    out.totalCards = ((window.LEITNER_DATA && LEITNER_DATA.cards) || []).length;
+    if (!btns.length) return JSON.stringify(out);
+    var cards = (window.LEITNER_DATA && LEITNER_DATA.cards) || [];
+    var btn = null, card = null;
+    for (var i = 0; i < btns.length && !btn; i++) {
+      for (var j = 0; j < cards.length; j++) {
+        if (cards[j].id === btns[i].dataset.cardId && String(cards[j].status || '').toUpperCase() === 'ACTIVE') {
+          btn = btns[i]; card = cards[j]; break;
+        }
+      }
+    }
+    if (!btn) return JSON.stringify(out);
+    btn.click();
+    var m = document.getElementById('modal-card-stats');
+    out.visible = !!(m && !m.classList.contains('hidden'));
+    out.wordShown = !!(m && m.querySelector('.cs-word') && m.querySelector('.cs-word').textContent === card.word);
+    out.dirBlocks = m ? m.querySelectorAll('.cs-dirblock').length : 0;
+    out.segs = m ? m.querySelectorAll('.cs-seg').length : 0;
+    out.segsOn = m ? m.querySelectorAll('.cs-seg.on').length : 0;
+    out.expectOn = (Number(card.level_en_ru) || 0) + (Number(card.level_ru_en) || 0);
+    var rc = Number(card.review_count) || 0, fc = Number(card.fail_count) || 0;
+    out.answers = m && m.querySelector('.cs-answers-val') ? m.querySelector('.cs-answers-val').textContent : null;
+    out.expectRc = rc;
+    out.success = m && m.querySelector('.cs-success-val') ? m.querySelector('.cs-success-val').textContent : null;
+    out.expectPct = rc > 0 ? Math.min(100, Math.max(0, Math.round((rc - fc) / rc * 100))) + '%' : '—';
+    out.overdueOrDue = m ? m.querySelectorAll('.cs-v.overdue, .cs-v.due-now').length : 0;
+    return JSON.stringify(out);
+  })()`));
+  rec('cardstats: 📊-кнопка у каждой карточки словаря',
+    csOpen.btnCount > 0 && csOpen.btnCount === csOpen.totalCards, `${csOpen.btnCount}/${csOpen.totalCards}`);
+  rec('cardstats: клик открывает модалку с тем самым словом',
+    csOpen.visible === true && csOpen.wordShown === true);
+  rec('cardstats: два блока направлений, 12 сегментов, заполнено = сумма уровней',
+    csOpen.dirBlocks === 2 && csOpen.segs === 12 && csOpen.segsOn === csOpen.expectOn,
+    `blocks=${csOpen.dirBlocks} segs=${csOpen.segs} on=${csOpen.segsOn} expected=${csOpen.expectOn}`);
+  rec('cardstats: lifetime-цифры = данные карточки',
+    csOpen.answers === String(csOpen.expectRc) && csOpen.success === csOpen.expectPct,
+    `answers=${csOpen.answers} (ждём ${csOpen.expectRc}), success=${csOpen.success} (ждём ${csOpen.expectPct})`);
+  const csBank = JSON.parse(w.eval(`(function () {
+    var cards = (window.LEITNER_DATA && LEITNER_DATA.cards) || [];
+    var bankId = null;
+    for (var i = 0; i < cards.length; i++) {
+      if (cards[i] && String(cards[i].status || '').toUpperCase() !== 'ACTIVE') { bankId = cards[i].id; break; }
+    }
+    if (!bankId) return JSON.stringify({ skip: true });
+    window.VocabaCardStats.open(bankId);
+    var m = document.getElementById('modal-card-stats');
+    return JSON.stringify({
+      visible: !m.classList.contains('hidden'),
+      bankNote: !!m.querySelector('.cs-bank-note'),
+      noDirBlocks: m.querySelectorAll('.cs-dirblock').length === 0
+    });
+  })()`));
+  rec('cardstats: банковская карточка — нотис вместо блоков направлений',
+    csBank.skip === true || (csBank.visible && csBank.bankNote && csBank.noDirBlocks), JSON.stringify(csBank));
+  w.eval(`document.getElementById('cs-close').click();`);
+  rec('cardstats: ✖ закрывает модалку',
+    w.eval(`document.getElementById('modal-card-stats').classList.contains('hidden')`) === true);
+  w.eval(`window.VocabaCardStats.open(document.querySelector('.btn-dict-stats').dataset.cardId);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));`);
+  rec('cardstats: Escape закрывает модалку (capture, без ухода с экрана)',
+    w.eval(`document.getElementById('modal-card-stats').classList.contains('hidden')`) === true
+      && w.eval(`document.getElementById('screen-dictionary').classList.contains('active')`) === true);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

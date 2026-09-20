@@ -4152,3 +4152,59 @@ input, textarea,
 }
 #dm-goal-input:focus { outline: none; border-color: rgba(var(--accent-primary-rgb), 0.8); }
 .dm-goal-hint { font-size: 10.5px; }
+
+/* ============================================================
+   CARD STATS (20.09): личная статистика карточки из Dictionary.
+   Кнопка 📊 рядом с Edit/Delete + модалка-досье (инжектируется
+   datacare.js). Только токены темы.
+   ============================================================ */
+.btn-dict-stats {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: rgba(var(--accent-primary-rgb), 0.1);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--accent-primary-rgb), 0.22);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+.btn-dict-stats:hover {
+  background: rgba(var(--accent-primary-rgb), 0.28);
+  border-color: rgba(var(--accent-primary-rgb), 0.5);
+}
+.cs-modal { max-width: 560px; width: 94%; }
+.cs-body { margin-top: 10px; }
+.cs-wordline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cs-word { font-size: 26px; font-weight: 800; color: var(--text-main); }
+.cs-phonetic { color: var(--text-muted); font-size: 14px; }
+.cs-translation { color: var(--text-soft); font-size: 15px; margin-top: 3px; }
+.cs-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 9px; font-size: 12px; color: var(--text-muted); }
+.cs-dirblock {
+  margin-top: 13px; padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  border: 1px solid rgba(var(--overlay-rgb), 0.08);
+}
+.cs-dirhead { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-weight: 800; font-size: 13px; color: var(--text-main); }
+.cs-dirlevel { font-size: 11.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.cs-levelbar { display: flex; gap: 4px; margin: 9px 0 10px; }
+.cs-seg { flex: 1; height: 8px; border-radius: 4px; background: rgba(var(--overlay-rgb), 0.1); }
+.cs-rows { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12.5px; }
+.cs-k { color: var(--text-muted); font-weight: 700; }
+.cs-v { color: var(--text-soft); font-weight: 600; }
+.cs-v.due-now { color: var(--accent-amber); font-weight: 800; }
+.cs-v.overdue { color: var(--accent-red); font-weight: 800; }
+.cs-lifetime {
+  margin-top: 13px; padding: 11px 13px; border-radius: 12px;
+  background: rgba(var(--overlay-rgb), 0.04);
+  border: 1px solid rgba(var(--overlay-rgb), 0.08);
+}
+.cs-lifetime-head { font-weight: 800; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 7px; }
+.cs-success-track { height: 8px; border-radius: 4px; background: rgba(var(--overlay-rgb), 0.1); margin-top: 9px; overflow: hidden; }
+.cs-success-fill { height: 100%; border-radius: 4px; background: rgba(var(--accent-green-rgb), 0.9); transition: width 0.2s ease; }
+.cs-bank-note {
+  margin-top: 13px; padding: 11px 13px; border-radius: 12px;
+  font-size: 13px; line-height: 1.45; color: var(--text-soft);
+  background: rgba(var(--accent-amber-rgb), 0.08);
+  border: 1px solid rgba(var(--accent-amber-rgb), 0.25);
+}
+.cs-empty { color: var(--text-muted); font-size: 13px; padding: 8px 0; }
