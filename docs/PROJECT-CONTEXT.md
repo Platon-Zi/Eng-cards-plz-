@@ -118,6 +118,13 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Тост** (app.js, startTrainingSession, сразу после critical-тоста): только mode==='learn' и только если bankCount > batchWords: `🌱 Learn batch: 20 of 87 Bank words · 40 cards (each word from both sides).` Слова = ceil(items/2), банк = appState.cards.filter(SRS.isBank).
 - **Тест** (check-datacare §15, → 82/82): startTrainingSession('learn') на фиксированных часах; regex по toast-container `Learn batch: (N) of (M) Bank words · (K) cards`; K = N×2, M > N. ВАЖНО: toast-container НАКАПЛИВАЕТ тосты — regex может сматчить ранний тост той же сессии дня (в тесте это допустимо: соотношения чисел инвариантны).
 
+### 3m. KPI-ряд статистики: 4 равные колонки, MASTERED убран (20.09, фидбек ×2 — НЕ ВОССТАНАВЛИВАТЬ!)
+- **История**: 5 KPI (Total/Due/MASTERED/Accuracy/Streak) в auto-fit grid ложились «4+1» — пользователь: «бесит асимметрия». Первая починка (flex-wrap+center, ярусы 3+2) тоже отвергнута: «симметрично, но уродски, одна больше других» (нижний ярус растягивался до max-width 300px).
+- **Финальное решение пользователя**: убрать карточку «🏆 MASTERED (30 days)» → осталось ровно 4 KPI → `.stats-kpi-grid = grid repeat(4, 1fr)` + медиа: ≤900px → 2×2, ≤520px → колонка. Никаких висящих/растянутых карточек.
+- **Удалено**: kpi-блок #stats-mastered-cards из index.html (заменён HTML-комментарием), setText('stats-mastered-cards') из app.js (check.cjs требует, чтобы каждый id из app.js существовал в index.html — нельзя оставлять ссылку!), проверка `#stats-mastered-cards == groups.MASTERED` из interact (§ вокруг строки ~237; 428 ассертов).
+- **Где теперь жить MASTERED-счёту**: лента Journey to Mastery (datacare mastery ribbon) и KNOWLEDGE GROUPS — данные не потеряны, убран только дубль в KPI. НЕ возвращать пятую карточку без явного запроса.
+- Экран Data & Backup делит .stats-kpi-grid (у него тоже 4 KPI) — правило ему подходит.
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).

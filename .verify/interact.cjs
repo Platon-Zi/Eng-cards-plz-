@@ -234,7 +234,8 @@ const dd = (n) => SRS.addDays(T, n);
       const txt = (id) => env.document.getElementById(id).textContent;
       t('#stats-total-cards == cards.length', txt('stats-total-cards') === String(cards.length), txt('stats-total-cards'));
       t('#stats-due-cards == summary.dueEntries', txt('stats-due-cards') === String(sum.dueEntries), txt('stats-due-cards'));
-      t('#stats-mastered-cards == groups.MASTERED', txt('stats-mastered-cards') === String(sum.groups.MASTERED || 0));
+      // (20.09) #stats-mastered-cards удалён из KPI-ряда (фидбек: 5 карточек
+      // несимметричны); mastered-счёт покрыт лентой Journey to Mastery.
       // Regression guard: calculateAccuracy() returns an OBJECT; the pre-fix code
       // printed "[object Object]%" here. Must stay a plain percentage.
       t('#stats-accuracy is a number% (regression: "[object Object]%")', /^\d+%$/.test(txt('stats-accuracy')), txt('stats-accuracy'));

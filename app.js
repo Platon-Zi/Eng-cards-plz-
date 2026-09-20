@@ -1088,7 +1088,9 @@ function renderStatsScreen() {
   // «К сроку» — ЗАПИСЯМИ (слово × направление), а не карточками: у одного слова два
   // независимых вектора, и просрочка одного ничего не говорит о втором.
   setText('stats-due-cards', sum.dueEntries || 0);
-  setText('stats-mastered-cards', groups.MASTERED || 0);
+  // (20.09) stats-mastered-cards убран из KPI-ряда по фидбеку пользователя
+  // (5 карточек не выстраивались симметрично). MASTERED по-прежнему виден в
+  // ленте Journey to Mastery и в KNOWLEDGE GROUPS.
   setText('stats-accuracy', (acc.accuracy || 0) + '%');
   setText('stats-streak', streak + ' days');
 
