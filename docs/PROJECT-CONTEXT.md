@@ -77,6 +77,11 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Сессия 'critical' объявляет себя**: тост «🔥 Critical minimum: the worst N due words, most urgent first.» в startTrainingSession (после buildQueueForMode, до empty-ветки) — отдельный скрипт отбора виден пользователю.
 - **Тесты**: check-datacare §11 (17 проверок, 42→58)
 
+### 3g. New Words per Day + unit-параметр бар-чарта (20.09, второй агент — НЕ ТЕРЯТЬ!)
+- **Карточка «🌱 New Words per Day · last 14 days»** в статистике ПЕРЕД Upcoming Load (таймлайн прошлое→будущее): зелёные столбцы = history[день].newWords (то самое поле из §3f — Today's Mission и график считают ОДНО И ТО ЖЕ). datacare.js: renderNewWords() в renderStatsExtras; total=0 → #chart-newwords-empty.
+- **ВАЖНО для параллельной модели**: drawFallbackBarChart(canvas, labels, data, hoverIdx, colors, **unit**) — новый ОПЦИОНАЛЬНЫЙ 6-й параметр: единица подсчёта для тултипа (плюрализация +s). Без unit — прежние «review/reviews» (обратная совместимость зафиксирована тестом). redraw прокидывает colors И unit.
+- **Тесты §12 (8 проверок, 58→66)**: синтетика unit/плюрализации/redraw/обратной совместимости + БОЕВОЙ поток: клик #dm-learn → Space (flip) → '3' (easy) → активация банковского слова → switchScreen('stats') → themechange → график построен, tipFor(13)='1 new word', пустые дни '0 new words'. ИНЪЕКЦИИ в историю из w.eval НЕ работают (appState.history — мигрированная копия, bundle-let из отдельного eval не виден) — только боевые потоки или чтение через datacare.
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).

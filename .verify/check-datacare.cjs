@@ -325,6 +325,57 @@ const $ = sel => d.querySelector(sel);
       || (dmLive.mode === 'critical' && dmLive.len === dmData.expectedCritical),
     JSON.stringify(dmLive));
 
+  // ── 12. New Words per Day: новые слова по дням (последние 14 дней) ──────
+  rec('newwords: canvas и empty-state в разметке',
+    !!$('#chart-newwords') && !!$('#chart-newwords-empty'));
+
+  // Синтетика: unit-параметр тултипов + множественное число + выживание redraw.
+  const nwSynth = JSON.parse(w.eval(`(function () {
+    var c = document.getElementById('chart-newwords');
+    var green = 'rgba(16, 185, 129, 0.9)';
+    drawFallbackBarChart(c, ['Sep 18', 'Sep 19'], [3, 1], -1, [green, green], 'new word');
+    var tip0 = c._chart.tipFor(0), tip1 = c._chart.tipFor(1);
+    c._chart.redraw(0);
+    var tipAfter = c._chart.tipFor(1);
+    // обратная совместимость: без unit — по-прежнему 'reviews'
+    drawFallbackBarChart(c, ['A'], [2], -1, null);
+    var tipDefault = c._chart.tipFor(0);
+    return JSON.stringify({ tip0: tip0, tip1: tip1, tipAfter: tipAfter, tipDefault: tipDefault });
+  })()`));
+  rec('newwords: тултип говорит «3 new words» (unit + плюрализация)',
+    /3 new words/.test(nwSynth.tip0) && /1 new word(?!s)/.test(nwSynth.tip1),
+    `${nwSynth.tip0} | ${nwSynth.tip1}`);
+  rec('newwords: unit переживает hover-redraw', nwSynth.tipAfter === nwSynth.tip1, nwSynth.tipAfter);
+  rec('newwords: без unit тултип прежний («reviews») — обратная совместимость',
+    /2 reviews/.test(nwSynth.tipDefault), nwSynth.tipDefault);
+
+  // Боевой поток: клик Learn → Space (flip) → 3 (easy) → активация банковского
+  // слова → app.js пишет history[today].newWords → stats перерисован → график.
+  const nwLive = JSON.parse(w.eval(`(function () {
+    var out = {};
+    try {
+      document.getElementById('dm-learn').click();
+      out.training = document.getElementById('screen-training').classList.contains('active');
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: '3', bubbles: true }));
+      switchScreen('stats');
+      window.dispatchEvent(new CustomEvent('themechange'));
+      var c = document.getElementById('chart-newwords');
+      var empty = document.getElementById('chart-newwords-empty');
+      out.emptyHidden = empty ? empty.hidden : null;
+      out.hasChart = !!(c && c._chart && c._chart.kind === 'bar');
+      if (out.hasChart) { out.tipToday = c._chart.tipFor(13); out.tipOld = c._chart.tipFor(0); }
+    } catch (e) { out.crash = String(e); }
+    return JSON.stringify(out);
+  })()`));
+  rec('newwords: learn-сессия стартовала по клику плитки', nwLive.training === true && !nwLive.crash, JSON.stringify(nwLive));
+  rec('newwords: после активации слова график построен, empty-state скрыт',
+    nwLive.hasChart === true && nwLive.emptyHidden === true, JSON.stringify(nwLive).slice(0, 120));
+  rec('newwords: сегодняшний столбец = «1 new word» (полный конвейер)',
+    /1 new word(?!s)/.test(nwLive.tipToday || ''), String(nwLive.tipToday));
+  rec('newwords: пустые дни — «0 new words»',
+    /0 new words/.test(nwLive.tipOld || ''), String(nwLive.tipOld));
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

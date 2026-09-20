@@ -1240,7 +1240,7 @@ function bindChartHover(canvas) {
   });
 }
 
-function drawFallbackBarChart(canvas, labels, data, hoverIdx, colors) {
+function drawFallbackBarChart(canvas, labels, data, hoverIdx, colors, unit) {
   if (!canvas) return;
   hoverIdx = typeof hoverIdx === 'number' ? hoverIdx : -1;
   const ctx = canvas.getContext('2d');
@@ -1337,8 +1337,13 @@ function drawFallbackBarChart(canvas, labels, data, hoverIdx, colors) {
       const i = Math.floor((mx - paddingLeft) / (barWidth + barGap));
       return (i >= 0 && i < data.length) ? i : -1;
     },
-    tipFor: (i) => `<b>${labels[i]}</b> · ${data[i]} ${data[i] === 1 ? 'review' : 'reviews'}`,
-    redraw: (h) => drawFallbackBarChart(canvas, labels, data, h, colors)
+    tipFor: (i) => {
+      // unit — необязательная единица подсчёта для тултипа ('review' по
+      // умолчанию для обратной совместимости; 'new word' → «3 new words»).
+      const u = (typeof unit === 'string' && unit) ? unit : 'review';
+      return `<b>${labels[i]}</b> · ${data[i]} ${data[i] === 1 ? u : u + 's'}`;
+    },
+    redraw: (h) => drawFallbackBarChart(canvas, labels, data, h, colors, unit)
   };
   if (prevChart && typeof prevChart.click === 'function') canvas._chart.click = prevChart.click;
   bindChartHover(canvas);

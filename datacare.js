@@ -574,11 +574,41 @@
     });
   }
 
+  /* ============ STATS v4: NEW WORDS PER DAY (20.09) ============
+     Сколько НОВЫХ слов активировано из Банка в каждый из последних 14 дней.
+     Источник — history[день].newWords (пишет app.js submitAnswer при
+     result.activated; Today's Mission и этот график считают одно и то же). */
+  function renderNewWords() {
+    var hist = {};
+    try {
+      hist = (typeof appState !== 'undefined' && appState && appState.history) ? appState.history
+        : ((window.LEITNER_DATA && LEITNER_DATA.history) || {});
+      if (!hist) hist = {};
+    } catch (e) {}
+    var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
+    var labels = [], data = [], total = 0;
+    for (var i = 13; i >= 0; i--) {
+      var iso = new Date(Date.parse(today) - i * 86400000).toISOString().slice(0, 10);
+      labels.push(fmtDay(iso));
+      var n = Number(hist[iso] && hist[iso].newWords) || 0;
+      data.push(n);
+      total += n;
+    }
+    var emptyEl = document.getElementById('chart-newwords-empty');
+    var canvas = document.getElementById('chart-newwords');
+    if (emptyEl) emptyEl.hidden = total > 0;
+    if (!canvas || total === 0 || typeof drawFallbackBarChart !== 'function') return;
+    var green = outcomeColor('--accent-green-rgb', '16, 185, 129');
+    var colors = data.map(function () { return green; });
+    drawFallbackBarChart(canvas, labels, data, -1, colors, 'new word');
+  }
+
   function renderStatsExtras() {
     try { renderOutcomes(); } catch (e) {}
     try { renderMasteryRibbon(); } catch (e) {}
     try { renderHighlights(); } catch (e) {}
     try { renderForecast(); } catch (e) {}
+    try { renderNewWords(); } catch (e) {}
   }
 
   function watchStatsActivation() {
