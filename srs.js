@@ -684,7 +684,14 @@
     words.forEach(function (card) {
       DIRECTIONS.forEach(function (dir) { items.push(makeItem(card, dir, today, salt, 'learn')); });
     });
-    return spreadSameCard(items, opts.gap);
+    // (20.09, фидбек пользователя) Заучивание — ПАРАМИ: EN→RU и сразу RU→EN
+    // каждого слова, БЕЗ разнесения spreadSameCard. Новое слово должно
+    // закладываться в память обеими сторонами сразу; при разнесении первые
+    // 4 карты сессии были всегда EN и обратная сторона терялась за горизонтом
+    // короткой сессии. Интервальное расстояние обеспечат повторения: оба
+    // вектора получают next_review на следующий день и дальше живут своей
+    // жизнью (в review-очередях разнесение сохранено).
+    return items;
   }
 
   /** Без фильтра по сроку: все ACTIVE (бывший режим 'mixed'). opts: {group, direction, limit, seed, gap} */

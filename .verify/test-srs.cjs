@@ -1206,7 +1206,7 @@ describe('queue builders', () => {
     assert.throws(() => SRS.buildReviewQueue(FIXTURE, TODAY, { direction: 'both' }), TypeError, 'queue: unknown direction opt throws');
   });
 
-  test('buildLearnQueue: BANK only, both directions per word, word limit, spread, seed', () => {
+  test('buildLearnQueue: BANK only, both directions per word as adjacent pairs, word limit, seed', () => {
     const bank = [];
     for (let i = 0; i < 25; i++) bank.push(mkBank('lb' + i));
     bank.push(qCard('active1', 'ACTIVE', 1, 1, TODAY, TODAY));
@@ -1215,8 +1215,12 @@ describe('queue builders', () => {
     assert.equal(new Set(lq.map((x) => x.cardId)).size, 20, 'learn: 20 distinct words chosen');
     assert.ok(lq.every((x) => x.kind === 'learn'), 'learn: every entry kind=learn');
     assert.ok(!lq.some((x) => x.cardId === 'active1'), 'learn: ACTIVE cards never enter the learn queue');
-    for (let i = 1; i < lq.length; i++) {
-      assert.notEqual(lq[i].cardId, lq[i - 1].cardId, 'learn: the two sides of a word are not adjacent at ' + i);
+    // (20.09) Заучивание парами: EN→RU и сразу RU→EN одного слова — обратная
+    // сторона больше не теряется за горизонтом короткой сессии.
+    for (let i = 0; i < lq.length; i += 2) {
+      assert.equal(lq[i].cardId, lq[i + 1].cardId, 'learn: word sides form an adjacent pair at ' + i);
+      assert.equal(lq[i].direction, 'en_ru', 'learn: pair starts with EN→RU at ' + i);
+      assert.equal(lq[i + 1].direction, 'ru_en', 'learn: pair ends with RU→EN at ' + (i + 1));
     }
     const l5 = SRS.buildLearnQueue(bank, TODAY, { limit: 5 });
     assert.equal(l5.length, 10, 'learn: limit counts WORDS (5 → 10 entries)');

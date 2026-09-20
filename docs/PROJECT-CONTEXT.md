@@ -90,6 +90,12 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Подсказка = AGAIN** (hintUsedForCurrentCard) → не засчитывается ✓ консистентно.
 - **Тесты §13 (7 проверок, 66→73)**: боевой поток — AGAIN на банковском → счётчик не дрогнул (1/15); undoPreviousCard() → 1/15; submitAnswer('easy') → 2/15; HARD на следующем → 3/15; график New Words синхронен (3 new words). Чтение счётчика через #dm-learn-num (appState-let из eval не виден).
 
+### 3i. Learn-очередь ПАРАМИ (20.09, фидбек пользователя — НЕ ТЕРЯТЬ!)
+- **Проблема**: пользователь видел в заучивании «исключительно англ-рус». Механика была двусторонней с v2 (4425d01), НО spreadSameCard(gap=3) разносила стороны слова на 4+ позиции — первые 4 карты сессии ВСЕГДА EN→RU (соль_shuffle = today, порядок внутри дня стабильный), и в короткой сессии обратная сторона не достигалась.
+- **Решение (srs.js buildLearnQueue)**: spreadSameCard для learn УБРАН — каждое новое слово идёт ПАРОЙ подряд: W:en_ru, W:ru_en, W2:en_ru, W2:ru_en... Обе стороны закладываются сразу; обе получают next_review на завтра и дальше живут независимо (в review-очередях spreadSameCard сохранён — «несоседность» остается принципом ПОВТОРЕНИЙ, learn — осознанное исключение).
+- **Тест**: test-srs «buildLearnQueue: ... as adjacent pairs» — цикл по i+=2 проверяет cardId-парность и порядок en_ru→ru_en (старый notEqual-цикл «not adjacent» удалён). Interact §14 (bank word both sides) зелёный без изменений — expected считается той же функцией.
+- Ответвление AGAIN внутри пары не ломает: активация A1 происходит с любого ответа, requeue вставляется через delay 4, same-day guard держит уровень до завтра.
+
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
   - **beta** — оригинальная vivid-палитра, **ДО NOT RESTYLE** (пользователь запретил). Её значения дублируют `:root` style.css; проверка `css_check.cjs` следит за паритетом token-for-token (77 токенов).
