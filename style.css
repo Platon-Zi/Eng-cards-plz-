@@ -3046,10 +3046,20 @@ input[type="text"]:focus, textarea:focus, select:focus {
 
 /* KPI Cards Grid */
 .stats-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* (20.09, фидбек) Flex вместо auto-fit grid: на Статистике 5 KPI, и сетка
+     из 4 колонок давала уродливое «4 + одна слева». Теперь ряд центрируется:
+     широкие окна — 5 в линию, узкие — симметричные ярусы (3+2, 2+2+1);
+     экран Data & Backup (4 карточки) — 4 в линию или 2+2, без висящих. */
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 16px;
   margin-top: 20px;
+}
+
+.stats-kpi-grid .kpi-card {
+  flex: 1 1 190px;
+  max-width: 300px;
 }
 
 .kpi-card {
