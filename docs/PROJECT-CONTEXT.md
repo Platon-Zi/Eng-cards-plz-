@@ -130,7 +130,8 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - **Security (XSS→RCE)**: 13 escapeHtml-обёрток в app.js (makeGroupCard/renderWordTable/renderSearch/handleFileSelected/typing+listening results). nodeIntegration=true → любой innerHTML с данными карточки = RCE; ВСЕ новые — через escapeHtml.
 - **F3**: undo '0'-банка (`answer===null`) восстанавливает done для ВСЕХ cardId-записей.
 - **F4**: showToast cap ≤5; **F7**: criticalScore fragility `rc>0?fc/rc:0`; **F8**: комментарий хоткея.
-- Тесты: check-datacare §16 (5 проверок VocabaReminder) → 87/87. verify ALL GREEN.
+- **In-app reminder banner** (21.09): datacare `renderReminderBanner` → полоса `#dm-reminder` над `#daily-mission`, видима пока Mission не закрыта («⏰ Daily mission not done — N reviews · M/K new words left»); ✖ = скрыть до завтра (`vocaba_reminder_dismissed`=today); «Practice now» → `startTrainingSession('critical')`. Элемент динамический (без index.html). Дополняет ОС-нотификации (могут блокироваться). Тест check-datacare §17.
+- Тесты: check-datacare §16+§17 (VocabaReminder: ОС-нотификации + in-app баннер) → 89/89. verify ALL GREEN.
 
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).
