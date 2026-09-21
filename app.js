@@ -235,6 +235,8 @@ async function initApp() {
   });
 
   renderDashboard();
+  // (20.09, F1 аудита) datacare.init бежит ДО резолва loadData → Mission стейл.
+  if (window.VocabaMission && typeof window.VocabaMission.render === 'function') window.VocabaMission.render();
   renderDictionary();
   renderStatsScreen();
   renderGroupsScreen();
@@ -2328,6 +2330,12 @@ async function undoPreviousCard() {
   if (srsSession) srsSession.cursor = currentCardIndex;
   const target = currentTrainingQueue[currentCardIndex];
   if (target && target.key === frame.itemKey) target.done = false;
+  // (20.09, F3 аудита) '0'-банк глушит ВСЕ записи cardId (app.js:2851); undo
+  // восстанавливает только frame.itemKey — второе направление оставалось done
+  // и молча пропускалось до следующей сессии. Кадры '0'-банка = answer===null.
+  if (frame.answer === null && Array.isArray(currentTrainingQueue)) {
+    currentTrainingQueue.forEach(function (it) { if (it && it.cardId === frame.cardId) it.done = false; });
+  }
   renderCurrentCard();
   renderDashboard();
   showToast(frame.wasBank ? '↩ Undone — the word is back in the Bank.' : '↩ Returned to previous card!', 'info');
@@ -2704,7 +2712,8 @@ function setupEventHandlers() {
   // 3 / → / D / В        = 🟢 Легко (+1 уровень, потолок L6 = 30 дней)
   // 0                    = 🏦 вернуть слово в Банк
   // ↓                    = откат к предыдущей карточке
-  // ↑ / W / Ц            = пропустить (в конец очереди, без оценки)
+  // W / Ц                = пропустить (в конец очереди, без оценки)
+  // ↑ / 2               = Сложно (Hard)  ·  → / 3 / D = Легко (Easy)  ·  ← / 1 = Забыл (Again)
   // Enter / Shift+Enter  = озвучить слово / подсказку
   // Escape               = закрыть модалку или вернуться в меню
   // Клавиша 4 намеренно свободна, а Shift/Alt+0..5 удалены: ручных коробок больше нет,
@@ -3246,7 +3255,7 @@ function handleFileSelected(file) {
 
     parsedFileCards.slice(0, 10).forEach(item => {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td><b>${escapeHtml(item.word)}</b></td><td>${escapeHtml(item.translation)}</td><td><small>${item.example}</small></td>`;;
+      tr.innerHTML = `<td><b>${escapeHtml(item.word)}</b></td><td>${escapeHtml(item.translation)}</td><td><small>${escapeHtml(item.example)}</small></td>`;;
       tbody.appendChild(tr);
     });
 
@@ -3583,6 +3592,8 @@ function showToast(message, type = 'info') {
   if (type === 'error') icon = '❌';
 
   toast.innerHTML = `<span>${icon}</span> <span>${escapeHtml(message)}</span>`;
+  // (20.09, F4) Защита от спама тостов: не больше 5 одновременно.
+  while (container.children.length >= 5) container.removeChild(container.firstChild);
   container.appendChild(toast);
 
   setTimeout(() => {
@@ -3632,11 +3643,11 @@ function makeGroupCard(icon, title, count, previewWords, overflowCount, onClickF
   el.innerHTML = `
     <div>
       <div class="group-header">
-        <span class="group-title">${icon} ${title}</span>
+        <span class="group-title">${icon} ${escapeHtml(title)}</span>
         <span class="group-count-badge">${count} cards</span>
       </div>
       <div class="group-preview-words">
-        <strong>Words:</strong> ${previewWords}${overflowCount}
+        <strong>Words:</strong> ${escapeHtml(previewWords)}${overflowCount}
       </div>
     </div>
     <div style="margin-top:12px; color: var(--text-muted); font-size:13px;">
@@ -3897,8 +3908,8 @@ function openGroupDetailModal({ type, title, cards, batchId = null, posKey = nul
       item.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.09);cursor:pointer;transition:background 0.15s;';
       item.innerHTML = `
         <div>
-          <strong style="color:var(--text-main);font-size:14px;">${card.word}</strong>
-          <span style="color:var(--text-muted);font-size:12px;margin-left:8px;">— ${card.translation}</span>
+          <strong style="color:var(--text-main);font-size:14px;">${escapeHtml(card.word)}</strong>
+          <span style="color:var(--text-muted);font-size:12px;margin-left:8px;">— ${escapeHtml(card.translation)}</span>
         </div>
         <button class="btn btn-primary" style="padding:3px 12px;font-size:12px;">+ Add</button>
       `;
@@ -3945,13 +3956,13 @@ function openGroupDetailModal({ type, title, cards, batchId = null, posKey = nul
       tr.innerHTML = `
         <td>
           <div style="display:inline-flex;align-items:center;gap:6px;">
-            <b>${card.word}</b>
+            <b>${escapeHtml(card.word)}</b>
             <button class="btn-speak btn-speak-table" data-id="${card.id}" title="Listen to pronunciation" aria-label="Listen to word">🔊</button>
-            ${card.phonetic ? `<small style="opacity:0.65;margin-left:2px;">${card.phonetic}</small>` : ''}
+            ${card.phonetic ? `<small style="opacity:0.65;margin-left:2px;">${escapeHtml(card.phonetic)}</small>` : ''}
           </div>
         </td>
-        <td>${card.translation}</td>
-        <td><span class="badge pos-noun" style="text-transform:capitalize;">${posDisplay}</span></td>
+        <td>${escapeHtml(card.translation)}</td>
+        <td><span class="badge pos-noun" style="text-transform:capitalize;">${escapeHtml(posDisplay)}</span></td>
         <td>${groupBadgeHtml(card)}</td>
         <td>
           <button class="btn btn-secondary btn-gd-edit" data-id="${card.id}" style="padding:3px 10px;font-size:12px;">✏️ Edit</button>
@@ -5397,7 +5408,7 @@ function finishTypingTest() {
       row.style.cssText = 'display: flex; justify-content: space-between; font-size: 13px; padding: 4px 8px; border-radius: 6px; background: rgba(var(--overlay-rgb),0.05);';
       
       const left = document.createElement('span');
-      left.innerHTML = `${item.isCorrect ? '✅' : '❌'} <b>${escapeHtml(item.word)}</b> <span style="color: var(--text-muted);">(${item.translation || ''})</span>`;;
+      left.innerHTML = `${item.isCorrect ? '✅' : '❌'} <b>${escapeHtml(item.word)}</b> <span style="color: var(--text-muted);">(${escapeHtml(item.translation || '')})</span>`;;
       
       const right = document.createElement('span');
       right.style.color = item.isCorrect ? 'var(--accent-green)' : 'var(--accent-red)';
@@ -5998,7 +6009,7 @@ function finishListeningTest() {
       row.style.cssText = 'display: flex; justify-content: space-between; font-size: 13px; padding: 6px 10px; border-radius: 6px; background: rgba(var(--overlay-rgb),0.05); margin-bottom: 4px;';
 
       const left = document.createElement('span');
-      left.innerHTML = `${item.isCorrect ? '✅' : '❌'} <b>${escapeHtml(item.word)}</b> <span style="color: var(--text-muted);">(${item.translation || ''})</span>`;;
+      left.innerHTML = `${item.isCorrect ? '✅' : '❌'} <b>${escapeHtml(item.word)}</b> <span style="color: var(--text-muted);">(${escapeHtml(item.translation || '')})</span>`;;
 
       const right = document.createElement('span');
       right.style.color = item.isCorrect ? 'var(--accent-green)' : 'var(--accent-red)';

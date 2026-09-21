@@ -29,6 +29,12 @@ try {
   Object.defineProperty(w.navigator, 'clipboard', { value: { writeText: (txt) => { copied = txt; return Promise.resolve(); } }, configurable: true });
 } catch (e) { errors.push('clipboard stub: ' + e.message); }
 
+// (20.09) Notification stub для модуля ежедневных напоминаний (VocabaReminder)
+w.__lastNotif = null;
+w.Notification = function (title, opts) { this.title = title; this.body = (opts && opts.body) || ''; w.__lastNotif = { title: title, body: this.body }; };
+w.Notification.permission = 'granted';
+w.Notification.requestPermission = function () { return Promise.resolve('granted'); };
+
 // В РЕАЛЬНОЙ разметке все классические <script> делят ОДИН global lexical
 // scope: top-level `let appState` из app.js виден из datacare.js. В jsdom
 // отдельные w.eval() НЕ разделяют let, поэтому склеиваем все шесть скриптов
@@ -499,6 +505,32 @@ const $ = sel => d.querySelector(sel);
     !!bt && Number(bt[3]) === Number(bt[1]) * 2 && Number(bt[2]) > Number(bt[1]),
     bt ? bt.slice(1).join(' / ') : 'no match');
   w.eval(`switchScreen('dashboard');`);
+
+  // ── 16. Daily reminders: системные нотификации по незакрытой Mission ──────
+  w.__lastNotif = null;
+  w.eval(`localStorage.setItem('vocaba_last_reminder', '0'); localStorage.setItem('vocaba_reminders', '1');`);
+  const ms = JSON.parse(w.eval(`JSON.stringify(window.VocabaReminder.missionStatus(srsToday()))`));
+  rec('reminders: missionStatus честен — долг>0, reviewDone=false, цель>=1',
+    ms.debt > 0 && ms.reviewDone === false && ms.learnDone === (ms.learned >= ms.goal) && ms.goal >= 1,
+    JSON.stringify(ms));
+  const r1 = JSON.parse(w.eval(`(function(){ var r = window.VocabaReminder.maybeRemind(true); return JSON.stringify(r); })()`));
+  rec('reminders: force=true будит нотификацию с долгом и целью (числа = missionStatus)',
+    r1 && r1.ok === true
+      && new RegExp(ms.debt + ' review').test(r1.body)
+      && new RegExp(ms.learned + '/' + ms.goal).test(r1.body),
+    JSON.stringify(r1));
+  rec('reminders: Notification реально создан (title/body совпадают)',
+    w.__lastNotif && w.__lastNotif.title === "Vocaba — Today's Mission"
+      && new RegExp(ms.debt + ' review').test(w.__lastNotif.body),
+    JSON.stringify(w.__lastNotif));
+  const r2 = JSON.parse(w.eval(`(function(){ var r = window.VocabaReminder.maybeRemind(false); return JSON.stringify(r); })()`));
+  rec('reminders: троттл — повторный без force в течение часа не будит (null)',
+    r2 === null, JSON.stringify(r2));
+  w.eval(`localStorage.setItem('vocaba_reminders', '0');`);
+  const r3 = JSON.parse(w.eval(`(function(){ var r = window.VocabaReminder.maybeRemind(true); return JSON.stringify(r); })()`));
+  rec('reminders: отключение (vocaba_reminders=0) глушит даже force',
+    r3 === null, JSON.stringify(r3));
+  w.eval(`localStorage.setItem('vocaba_reminders', '1');`);
 
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
