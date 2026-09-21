@@ -501,8 +501,8 @@ const $ = sel => d.querySelector(sel);
   const learnToast = String(w.eval(`document.getElementById('toast-container').textContent`));
   const bt = learnToast.match(/Learn batch: (\d+) of (\d+) Bank words · (\d+) cards/);
   rec('learn: тост объявляет батч (N of M Bank words · K cards)', !!bt, learnToast.slice(0, 140));
-  rec('learn: карточек вдвое больше слов, банк больше батча',
-    !!bt && Number(bt[3]) === Number(bt[1]) * 2 && Number(bt[2]) > Number(bt[1]),
+  rec('learn: карточек = числу слов (одно направление EN→RU, без дублей), банк больше батча',
+    !!bt && Number(bt[3]) === Number(bt[1]) && Number(bt[2]) > Number(bt[1]),
     bt ? bt.slice(1).join(' / ') : 'no match');
   w.eval(`switchScreen('dashboard');`);
 

@@ -1206,27 +1206,21 @@ describe('queue builders', () => {
     assert.throws(() => SRS.buildReviewQueue(FIXTURE, TODAY, { direction: 'both' }), TypeError, 'queue: unknown direction opt throws');
   });
 
-  test('buildLearnQueue: BANK only, both directions per word as adjacent pairs, word limit, seed', () => {
+  test('buildLearnQueue: BANK only, EN→RU per word (one card each), word limit, seed', () => {
     const bank = [];
     for (let i = 0; i < 25; i++) bank.push(mkBank('lb' + i));
     bank.push(qCard('active1', 'ACTIVE', 1, 1, TODAY, TODAY));
     const lq = SRS.buildLearnQueue(bank, TODAY);
-    assert.equal(lq.length, 40, 'learn: default limit = 20 words × 2 directions');
+    assert.equal(lq.length, 20, 'learn: default limit = 20 words × 1 direction (en_ru)');
     assert.equal(new Set(lq.map((x) => x.cardId)).size, 20, 'learn: 20 distinct words chosen');
     assert.ok(lq.every((x) => x.kind === 'learn'), 'learn: every entry kind=learn');
+    assert.ok(lq.every((x) => x.direction === 'en_ru'), 'learn: every entry direction=en_ru — one card per word, no duplicate');
     assert.ok(!lq.some((x) => x.cardId === 'active1'), 'learn: ACTIVE cards never enter the learn queue');
-    // (20.09) Заучивание парами: EN→RU и сразу RU→EN одного слова — обратная
-    // сторона больше не теряется за горизонтом короткой сессии.
-    for (let i = 0; i < lq.length; i += 2) {
-      assert.equal(lq[i].cardId, lq[i + 1].cardId, 'learn: word sides form an adjacent pair at ' + i);
-      assert.equal(lq[i].direction, 'en_ru', 'learn: pair starts with EN→RU at ' + i);
-      assert.equal(lq[i + 1].direction, 'ru_en', 'learn: pair ends with RU→EN at ' + (i + 1));
-    }
     const l5 = SRS.buildLearnQueue(bank, TODAY, { limit: 5 });
-    assert.equal(l5.length, 10, 'learn: limit counts WORDS (5 → 10 entries)');
+    assert.equal(l5.length, 5, 'learn: limit counts WORDS (5 → 5 entries)');
     const lex = SRS.buildLearnQueue(bank, TODAY, { limit: 30, excludeIds: ['lb0', 'lb1'] });
-    assert.ok(!lex.some((x) => x.cardId === 'lb0' || x.cardId === 'lb1'), 'learn: excludeIds drops both directions');
-    assert.equal(lex.length, 46, 'learn: 23 remaining words × 2');
+    assert.ok(!lex.some((x) => x.cardId === 'lb0' || x.cardId === 'lb1'), 'learn: excludeIds drops the word');
+    assert.equal(lex.length, 23, 'learn: 23 remaining words × 1');
     const s1 = SRS.buildLearnQueue(bank, TODAY, { seed: 'A', limit: 30 });
     const s2 = SRS.buildLearnQueue(bank, TODAY, { seed: 'A', limit: 30 });
     const s3 = SRS.buildLearnQueue(bank, TODAY, { seed: 'B', limit: 30 });

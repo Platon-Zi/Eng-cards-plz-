@@ -709,7 +709,7 @@ const dd = (n) => SRS.addDays(T, n);
     t('crafted walk produced no errors', p.length === 0, p.join('\n'));
   });
 
-  await runner.section('14. learn mode: bank word enters with BOTH sides, activation works', async ({ t }) => {
+  await runner.section('14. learn mode: bank word enters as EN→RU (one card), answer splits it into 2 sides', async ({ t }) => {
     if (!env2) { t('env2 available', false, 'previous section failed to boot'); return; }
     env2.click('#btn-hero-start-learn');
     await env2.tick(40);
@@ -720,25 +720,25 @@ const dd = (n) => SRS.addDays(T, n);
     const liveCards = env2.snapshotState().cards;
     const expected = SRS.buildLearnQueue(deepClone(liveCards), T, { seed: T, limit: SRS.DEFAULTS.learnBatchLimit });
     const actual = env2.evalJson(`JSON.stringify(currentTrainingQueue.map(i => i.key))`);
-    t('learn queue == SRS.buildLearnQueue (only the bank word, both directions)',
+    t('learn queue == SRS.buildLearnQueue (bank word, EN→RU only — one card per word)',
       deepEqual(actual, expected.map((i) => i.key)), `${JSON.stringify(actual)} vs ${JSON.stringify(expected.map((i) => i.key))}`);
-    t('learn queue = 2 items (gv_t7 en_ru + ru_en)', actual.length === 2 && actual.every((k) => k.startsWith('gv_t7:')), JSON.stringify(actual));
+    t('learn queue = 1 item (gv_t7:en_ru) — no duplicate, reverse side not shown in learn',
+      actual.length === 1 && actual[0] === 'gv_t7:en_ru', JSON.stringify(actual));
 
-    const r1 = await gradeVia(env2, t, 'easy', () => env2.click(ANSWER_BTNS.easy), 'learn[en_ru] easy (activates bank word)');
+    const r1 = await gradeVia(env2, t, 'easy', () => env2.click(ANSWER_BTNS.easy), 'learn[en_ru] easy (activates bank word → splits into 2 sides)');
     if (r1) {
       t('bank word is ACTIVE after the first answer', r1.live.status === 'ACTIVE', String(r1.live.status));
-      t('L0 answer promotes to L1 with due = today + 1', r1.live.level_en_ru === 1 && r1.live.next_review_en_ru === dd(1),
+      t('L0 answer promotes en_ru to L1 with due = today + 1', r1.live.level_en_ru === 1 && r1.live.next_review_en_ru === dd(1),
         `L${r1.live.level_en_ru} due ${r1.live.next_review_en_ru}`);
     }
-    t('learn item 2 (ru_en) flips the task prompt to Say it in English',
-      /Say it in English/i.test(env2.document.getElementById('card-task-prompt').textContent),
-      env2.document.getElementById('card-task-prompt').textContent);
-    await gradeVia(env2, t, 'easy', () => env2.click(ANSWER_BTNS.easy), 'learn[ru_en] easy');
-    t('learn session finished → dashboard', env2.activeScreen() === 'screen-dashboard', env2.activeScreen());
+    t('learn session finished → dashboard (one card shown, no duplicate word)', env2.activeScreen() === 'screen-dashboard', env2.activeScreen());
     const t7 = env2.card('gv_t7');
-    t('gv_t7 now ACTIVE L1/L1 with both dates = today+1',
-      t7.status === 'ACTIVE' && t7.level_en_ru === 1 && t7.level_ru_en === 1
-      && t7.next_review_en_ru === dd(1) && t7.next_review_ru_en === dd(1), stableStringify(t7, 300));
+    t('gv_t7 ACTIVE: en_ru L1 due+1, ru_en L0 due TODAY (reverse side split off into the review queue)',
+      t7.status === 'ACTIVE' && t7.level_en_ru === 1 && t7.next_review_en_ru === dd(1)
+      && t7.level_ru_en === 0 && t7.next_review_ru_en === T, stableStringify(t7, 300));
+    const reviewKeys = SRS.buildReviewQueue(env2.snapshotState().cards, T, {}).map((i) => i.key);
+    t('gv_t7:ru_en is now in the review queue (the split side lives in review, not learn)',
+      reviewKeys.includes('gv_t7:ru_en'), JSON.stringify(reviewKeys).slice(0, 140));
     const p = env2.takeProblems();
     t('learn section produced no errors', p.length === 0, p.join('\n'));
   });

@@ -1746,15 +1746,15 @@ function startTrainingSession(mode, specificGroup = null, specificFilter = null)
     showToast(`🔥 Critical minimum: the worst ${items.length} due words, most urgent first.`, 'info');
   }
 
-  // (20.09, вопрос пользователя «в банке 87 слов, а тут только 40») Разные
-  // единицы: банк считает СЛОВА, а learn-сессия берёт батч из 20 слов и
-  // показывает КАРТОЧКИ — их вдвое больше (каждое слово с двух сторон).
-  // Одна строка объясняет батч, если в банке остались слова сверх него.
+  // (21.09, фидбек) Заучивание = ОДНА карточка на слово (EN→RU). Банк считает
+  // слова, learn берёт батч из 20 слов — теперь карточек столько же, сколько
+  // слов (каждое слово показывается один раз; обратная сторона RU→EN
+  // закрепляется ПОВТОРЕНИЕМ — activateCard ставит оба вектора в ACTIVE, due сегодня).
   if (mode === 'learn' && items.length) {
     const bankCount = appState.cards.filter(c => SRS.isBank(c)).length;
-    const batchWords = Math.ceil(items.length / 2);
+    const batchWords = items.length;
     if (bankCount > batchWords) {
-      showToast(`🌱 Learn batch: ${batchWords} of ${bankCount} Bank words · ${items.length} cards (each word from both sides).`, 'info');
+      showToast(`🌱 Learn batch: ${batchWords} of ${bankCount} Bank words · ${items.length} cards.`, 'info');
     }
   }
 
@@ -2211,12 +2211,13 @@ async function submitAnswer(answerToken) {
   // ВАЖНО: done ставим ПОСЛЕ sessionRequeue — копия в очереди должна остаться неотмеченной.
   item.done = true;
 
-  // Режим изучения: первое слово из Банка активируется этим ответом, а вторая его
-  // сторона остаётся должной сегодня → добавляем её в ту же сессию (не подряд).
-  if (result.activated && srsSession && result.pendingDirections && result.pendingDirections.length) {
-    const added = SRS.sessionEnsure(srsSession, result.card, result.pendingDirections, today, 'learn');
-    if (added.length) console.log('[learn] вторая сторона добавлена в сессию:', added.join(', '));
-  }
+  // (21.09, фидбек) НЕ добавляем обратную сторону в learn-сессию. Раньше
+  // sessionEnsure вставлял ru_en того же слова прямо сюда — слово показывалось
+  // дважды подряд, и пользователь счёл это дублем. Теперь: отвечая EN→RU,
+  // банк-слово переходит в ACTIVE (activateCard ставит оба вектора на level 0,
+  // next_review = сегодня) — слово «разделяется на 2 стороны», но обе уходят в
+  // ПОВТОРЕНИЕ (review-очередь с разнесением spreadSameCard), а не в этот learn.
+  // Learn остаётся чистым: одно слово — одна карточка EN→RU.
 
   await saveData();
 
