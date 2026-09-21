@@ -166,8 +166,10 @@ reviewChunkSize:30, …}`. Группы: `GROUP_OF_LEVEL {0:NEW, 1:LEARNING, 2-3
     cardGroup, dueDate, overdue, overdueDisplay, tieBreak}`; сортировка «слабые/просроченные первыми»;
     `spreadSameCard(gap=3)` — стороны одного слова НЕ соседние.
   - `buildLearnQueue(cards, today, opts)` — BANK-слова, seededShuffle(соль=today|seed),
-    limit=20 СЛОВ, и **каждое слово ПАРОЙ подряд**: W:en_ru, W:ru_en (spreadSameCard для learn
-    УБРАН — фидбек пользователя §3i/3k; «несоседность» остаётся принципом ПОВТОРЕНИЙ).
+    limit=20 СЛОВ, **по ОДНОЙ карточке EN→RU на слово** (21.09, фидбек ×2: пары убраны —
+    пользователь счёл дубль слова лишним; обратная сторона RU→EN НЕ в learn, а в ПОВТОРЕНИЕ:
+    отвечая EN→RU, банк-слово активируется, activateCard ставит оба вектора на level 0 /
+    next_review сегодня — слово «разделяется на 2 стороны» уже в review-очереди).
   - `buildCramQueue` — все ACTIVE оба направления, BANK исключён, due игнорируется.
   - `buildSubsetQueue(subset, …, {includeBank, allDirections, fallbackAllDirections})` — для
     batch/pos/custom_group/single_word; BANK-записи получают kind:'learn'.
@@ -245,8 +247,8 @@ reviewChunkSize:30, …}`. Группы: `GROUP_OF_LEVEL {0:NEW, 1:LEARNING, 2-3
   0.5·(overdue>0)`; sort score↓, overdue↓, level↓; CAP=40 («минимум, с которым можно лечь спать»).
   Тост сессии: «🔥 Critical minimum: the worst N due words, most urgent first.»
 - **Daily Reminders (VocabaReminder)** (sam 21.09): HTML5 Notification нативно в Electron renderer (без правок main.js). `missionStatus(today)` → {learned, goal, debt, completedToday, reviewDone, learnDone}; `maybeRemind(force)` будит, только если Mission НЕ закрыта (reviewDone && learnDone → не тревожить); троттл ≤ 1/час (localStorage `vocaba_last_reminder`); клик → window.focus + switchScreen('dashboard'); отключение `vocaba_reminders='0'`. `startReminders()` из init: requestPermission + 90с первая проверка + 25-мин интервал. `window.VocabaMission = {render: renderDailyMission}` — app.js зовёт после loadData (фикс F1 гонки: datacare.init бежит до резолва loadData → Mission стейл).
-- **Learn-батч тост**: банк в СЛОВАХ, сессия в КАРТОЧКАХ (20 слов × 2 = 40). Если в банке больше
-  слов, чем в батче: «🌱 Learn batch: 20 of 87 Bank words · 40 cards (each word from both sides).»
+- **Learn-батч тост**: банк в СЛОВАХ, сессия = столько же КАРТОЧЕК (20 слов = 20 карт, одно
+  направление EN→RU). Если в банке больше слов, чем в батче: «🌱 Learn batch: 20 of 87 Bank words · 20 cards.»
 - **VocabaCardStats** (📊 модалка карточки из Dictionary): скелет `#modal-card-stats` статично в
   index.html; вход `window.VocabaCardStats.open(cardId)` по `.btn-dict-stats` (dataset.cardId;
   guard чтобы клик не запускал single_word). Контент: слово/🔊/транскрипция/перевод, pos+group
@@ -342,7 +344,7 @@ reviewChunkSize:30, …}`. Группы: `GROUP_OF_LEVEL {0:NEW, 1:LEARNING, 2-3
 7. KPI статистики: ровно 4, `#stats-mastered-cards` НЕ существует (interact/check.cjs id-скан).
 8. Card stats: 198 кнопок, 2 блока/12 сегментов/on=сумма уровней, lifetime=данные карточки,
    BANK-нотис, ✖ и Escape закрывают БЕЗ ухода с экрана (§14).
-9. Learn-батч тост: cards = words×2, bank > batch (§15).
+9. Learn-батч тост: cards = words (одно направление EN→RU), bank > batch (§15).
 10. 96 экспортов SRS (API_NAMES); порядок скриптов; id-покрытие; EN-only UI; токены-only CSS;
     β/sandstone палитры; анимации ≤0.22s; WCAG 369 пар.
 11. `order` зеркалит `items` в сессии (interact §11); requeue-потолок 1/ключ; skip в конец.
