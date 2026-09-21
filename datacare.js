@@ -518,6 +518,7 @@
 
     var input = document.getElementById('dm-goal-input');
     if (input && document.activeElement !== input) input.value = goal;
+    renderReminderBanner();   // (21.09) видимая полоса-напоминание на дашборде
   }
 
   var dmWired = false;
@@ -926,6 +927,63 @@
     missionStatus: missionStatus, notify: notify, maybeRemind: maybeRemind,
     startReminders: startReminders
   };
+
+  /* ============ IN-APP REMINDER BANNER (21.09) — «простенькая система
+     напоминаний» для веб-приложения. ОС-нотификации (VocabaReminder.notify)
+     системные — могут блокироваться правами/теряться во вкладке. Эта полоса
+     видима прямо на дашборде, пока дневная Mission не закрыта, и закрывается
+     на день (✖ → localStorage = today). Ре-рендерится из renderDailyMission
+     (а значит и при активации дашборда). Элемент создаётся динамически — id не
+     обязан быть в index.html (check.cjs id-coverage сканирует только app.js). */
+  var REMINDER_DISMISS_KEY = 'vocaba_reminder_dismissed';
+
+  function reminderDismissedToday(today) {
+    try { return (localStorage.getItem(REMINDER_DISMISS_KEY) || '') === today; } catch (e) { return false; }
+  }
+  function dismissReminder(today) {
+    try { localStorage.setItem(REMINDER_DISMISS_KEY, today); } catch (e) {}
+  }
+
+  function renderReminderBanner() {
+    var dm = document.getElementById('daily-mission');
+    if (!dm || !dm.parentNode) return;
+    var el = document.getElementById('dm-reminder');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'dm-reminder';
+      el.className = 'section-card dm-reminder';
+      el.style.cssText = 'display:none;align-items:center;gap:12px;padding:12px 16px;background:rgba(var(--overlay-rgb),0.08);border:1px solid var(--accent);border-radius:12px;flex-wrap:wrap;margin-bottom:12px;';
+      dm.parentNode.insertBefore(el, dm);
+    }
+    var today = (typeof srsToday === 'function') ? srsToday() : new Date().toISOString().slice(0, 10);
+    var st = missionStatus(today);
+    var incomplete = !st.reviewDone || !st.learnDone;
+    if (!incomplete || reminderDismissedToday(today)) { el.style.display = 'none'; el.innerHTML = ''; return; }
+    var parts = [];
+    if (!st.reviewDone) parts.push('🔥 ' + st.debt + ' review' + (st.debt === 1 ? '' : 's') + ' due');
+    if (!st.learnDone) parts.push('🌱 ' + st.learned + '/' + st.goal + ' new words');
+    el.innerHTML = '';
+    var msg = document.createElement('span');
+    msg.style.cssText = 'flex:1;min-width:180px;font-size:14px;color:var(--text-main);';
+    msg.textContent = '⏰ Daily mission not done — ' + parts.join(' · ') + ' left for today.';
+    var btn = document.createElement('button');
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'padding:6px 14px;font-size:13px;';
+    btn.textContent = 'Practice now';
+    btn.onclick = function () {
+      try { if (typeof switchScreen === 'function') switchScreen('training'); } catch (e) {}
+      try { if (typeof startTrainingSession === 'function') startTrainingSession('critical'); } catch (e) {}
+    };
+    var close = document.createElement('button');
+    close.className = 'btn btn-secondary';
+    close.style.cssText = 'padding:4px 10px;font-size:13px;line-height:1;';
+    close.title = 'Hide until tomorrow';
+    close.textContent = '✖';
+    close.onclick = function () { dismissReminder(today); renderReminderBanner(); };
+    el.appendChild(msg); el.appendChild(btn); el.appendChild(close);
+    el.style.display = '';
+  }
+  window.VocabaReminder.renderBanner = renderReminderBanner;
 
   // (20.09, F1 аудита) app.js зовёт VocabaMission.render() после loadData —
   // иначе Mission-плитки стейл («0 due») на первом запуске (гонка init ↔ loadData).

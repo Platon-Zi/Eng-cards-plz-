@@ -532,6 +532,20 @@ const $ = sel => d.querySelector(sel);
     r3 === null, JSON.stringify(r3));
   w.eval(`localStorage.setItem('vocaba_reminders', '1');`);
 
+  // ── 17. Reminder banner: видимое in-app напоминание на дашборде ────────
+  w.eval(`localStorage.removeItem('vocaba_reminder_dismissed');`);
+  w.eval(`window.VocabaReminder.renderBanner();`);
+  const bannerShown = w.eval(`(function(){ var el = document.getElementById('dm-reminder'); return !!(el && el.style.display !== 'none'); })()`);
+  const bannerText = String(w.eval(`(function(){ var el = document.getElementById('dm-reminder'); return el ? el.textContent : ''; })()`));
+  rec('reminders: видимый баннер появляется, когда Mission не закрыта (долг>0)',
+    bannerShown === true && /\d+ review/.test(bannerText), bannerText.slice(0, 120));
+  w.eval(`(function(){ var b = document.querySelector('#dm-reminder button[title="Hide until tomorrow"]'); if (b) b.click(); })()`);
+  const afterDismiss = w.eval(`(function(){ var el = document.getElementById('dm-reminder'); return !el || el.style.display === 'none'; })()`);
+  const dismissedVal = String(w.eval(`localStorage.getItem('vocaba_reminder_dismissed')`));
+  const todayStr = String(w.eval(`srsToday()`));
+  rec('reminders: ✖ прячет баннер до завтра (localStorage = today)',
+    afterDismiss === true && dismissedVal === todayStr, `${afterDismiss} | "${dismissedVal}" vs "${todayStr}"`);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);
