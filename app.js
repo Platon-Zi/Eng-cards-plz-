@@ -3419,7 +3419,7 @@ function renderDictionary() {
   // иначе пользователь не найдёт её и не поймёт, как добавить слова. Прячется только
   // при групповом фильтре (Trash не входит ни в одну группу) или чужом поиске.
   const showTrash = !!(window.VocabaTrash)
-    && (searchQuery.includes('trash') || (!searchQuery && !groupFilter));
+    && (searchQuery.includes('trash') || searchQuery.includes('мусор') || (!searchQuery && !groupFilter));
 
   if (filtered.length === 0 && !showTrash) {
     grid.innerHTML = `<div class="dict-empty" style="grid-column: 1 / -1; text-align:center; color: var(--text-muted); padding: 30px;">
@@ -3482,7 +3482,7 @@ function renderDictionary() {
           <button class="btn-dict-stats" title="Personal stats of this card">📊 Stats</button>
           <button class="btn-dict-edit">✏️ Edit</button>
           <button class="btn-dict-trash" title="Move to Trash — hide from dictionary, pause repetition (reversible)">🗑️ Trash</button>
-          <button class="btn-dict-delete">🗑️ Delete</button>
+          <button class="btn-dict-delete">❌ Delete</button>
         </div>
       </div>
     `;

@@ -543,6 +543,9 @@ const $ = sel => d.querySelector(sel);
   w.eval(`document.getElementById('dict-search-input').value='trash'; renderDictionary();`);
   rec('trash: поиск "trash" находит псевдо-карточку (findable by English search)',
     w.eval(`!!document.querySelector('.trash-card')`) === true);
+  w.eval(`document.getElementById('dict-search-input').value='мусор'; renderDictionary();`);
+  rec('trash: поиск "мусор" (рус.) тоже находит псевдо-карточку',
+    w.eval(`!!document.querySelector('.trash-card')`) === true);
   w.eval(`document.getElementById('dict-search-input').value=''; renderDictionary();`);
   const restored = w.eval(`window.VocabaTrash.restoreCard(${JSON.stringify(trashId)})`);
   w.eval(`renderDictionary();`);

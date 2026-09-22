@@ -1707,6 +1707,26 @@ input[type="text"]:focus, textarea:focus, select:focus {
   color: var(--text-bright);
 }
 
+/* (21.09) Мусорка — амбер-оттенок (тёплый, «отложить»), чтобы визуально отличать
+   от красного Delete (перманентно) и нейтрального Edit. 🗑️ = wastebasket = «в мусорку»
+   (обратимо), ❌ Delete = «удалить навсегда». Скругление — var(--radius-sm) как у соседей. */
+.btn-dict-trash {
+  padding: 4px 8px;
+  font-size: 12px;
+  background: rgba(var(--accent-amber-rgb), 0.12);
+  color: var(--accent-amber);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(var(--accent-amber-rgb), 0.3);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btn-dict-trash:hover {
+  background: rgba(var(--accent-amber-rgb), 0.3);
+  border-color: rgba(var(--accent-amber-rgb), 0.55);
+  color: var(--text-bright);
+}
+
 /* ==========================================================================
    CARD CHROME (SRS v2) — direction · level pill · due note (§5.2).
    Replaces the retired .card-box-indicator number badge. Landed markup puts
