@@ -553,6 +553,40 @@ const $ = sel => d.querySelector(sel);
   rec('trash: restoreCard возвращает слово в словарь и чистит localStorage',
     restored === true && realRestored === realBefore && w.eval('window.VocabaTrash.trashCount()') === 0);
 
+  // ── 19. Telegram daily backup: конфиг, guard, sendDocument, UI-панель ──
+  w.eval(`localStorage.removeItem('vocaba_tg_token'); localStorage.removeItem('vocaba_tg_chat'); localStorage.removeItem('vocaba_tg_last_backup');`);
+  rec('telegram: без настроек → не настроен, guard=not-configured',
+    w.eval('window.VocabaTelegram.tgIsConfigured()') === false
+    && w.eval('window.VocabaTelegram.tgShouldSendToday().reason') === 'not-configured');
+  w.eval(`localStorage.setItem('vocaba_tg_token','123:test'); localStorage.setItem('vocaba_tg_chat','42');`);
+  rec('telegram: с токеном+chatId → настроен, guard=send (lastSent пуст)',
+    w.eval('window.VocabaTelegram.tgIsConfigured()') === true
+    && w.eval('window.VocabaTelegram.tgShouldSendToday().send') === true);
+  const tgCap = String(w.eval('window.VocabaTelegram.tgCaption()'));
+  const tgFname = String(w.eval('window.VocabaTelegram.tgFilename()'));
+  rec('telegram: caption содержит слова+дату, filename = leitner_data_<today>.json',
+    tgCap.includes('words') && tgFname === ('leitner_data_' + String(w.eval('window.VocabaTelegram.tgTodayStr()')) + '.json'));
+  rec('telegram: панель #tg-backup-panel инжектируется в #screen-data с полями token/chat + кнопками Save/Send now',
+    w.eval('!!document.getElementById("tg-backup-panel") && !!document.getElementById("tg-token") && !!document.getElementById("tg-chat") && !!document.getElementById("tg-save") && !!document.getElementById("tg-send-now")') === true);
+  // stub fetch → захват POST sendDocument; send async, ждём settle
+  w.eval(`(function(){
+    window.__tgCap = null;
+    window.fetch = function(url, opts){
+      try { var fd = opts.body; var doc = fd.get('document'); window.__tgCap = { url: String(url), chat_id: String(fd.get('chat_id')), fname: (doc && doc.name) || '', caption: String(fd.get('caption')) }; } catch(e){ window.__tgCap = { err: String(e) }; }
+      return Promise.resolve({ json: function(){ return Promise.resolve({ ok: true }); } });
+    };
+  })()`);
+  w.eval(`window.VocabaTelegram.tgSendBackup();`);
+  await wait(500);
+  const tgSent = JSON.parse(w.eval(`JSON.stringify(window.__tgCap || {})`));
+  const tgLast = String(w.eval(`localStorage.getItem('vocaba_tg_last_backup')`));
+  rec('telegram: tgSendBackup → POST /sendDocument с chat_id=42, файлом leitner_data_*, caption со словами',
+    String(tgSent.url || '').indexOf('/sendDocument') !== -1 && tgSent.chat_id === '42' && String(tgSent.fname || '').startsWith('leitner_data_') && String(tgSent.caption || '').includes('words'),
+    JSON.stringify(tgSent));
+  rec('telegram: после отправки last-sent=сегодня → guard=already-sent-today',
+    tgLast === String(w.eval('window.VocabaTelegram.tgTodayStr()'))
+    && w.eval('window.VocabaTelegram.tgShouldSendToday().reason') === 'already-sent-today');
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

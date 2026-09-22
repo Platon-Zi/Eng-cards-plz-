@@ -970,6 +970,162 @@
     trashCardEl: trashCardEl, open: trashOpen, close: trashClose, trashLoad: trashLoad
   };
 
+  /* ============ TELEGRAM DAILY BACKUP (21.09) — снимок базы каждый день в
+     твой Telegram-чат (off-site бекап). Токен/chatId в localStorage (НЕ в git):
+     sendDocument(file leitner_data_<date>.json + caption-сводка). Планировщик:
+     catch-up на запуск (если сегодня не отправляли — шлём) + ежечасный ре-чек
+     (ловит переход через полночь, пока приложение открыто). Кнопка Send now —
+     вручную/тест. app.js initApp зовёт tgMaybeDailyBackup()+tgStartScheduler()
+     ПОСЛЕ loadData (appState уже наполнен). */
+  var TG_TOKEN_KEY = 'vocaba_tg_token';
+  var TG_CHAT_KEY = 'vocaba_tg_chat';
+  var TG_LAST_KEY = 'vocaba_tg_last_backup';
+  var TG_TIMER = null;
+
+  function tgConfig() {
+    var token = '', chatId = '';
+    try { token = localStorage.getItem(TG_TOKEN_KEY) || ''; } catch (e) {}
+    try { chatId = localStorage.getItem(TG_CHAT_KEY) || ''; } catch (e) {}
+    return { token: token, chatId: chatId };
+  }
+  function tgIsConfigured() { var c = tgConfig(); return !!(c.token && c.chatId); }
+  function tgLastSent() { try { return localStorage.getItem(TG_LAST_KEY) || ''; } catch (e) { return ''; } }
+  function tgTodayStr() {
+    try { if (typeof srsToday === 'function') return srsToday(); } catch (e) {}
+    return new Date().toISOString().slice(0, 10);
+  }
+  function tgFilename() { return 'leitner_data_' + tgTodayStr() + '.json'; }
+  function tgCaption() {
+    var n = (appState && Array.isArray(appState.cards)) ? appState.cards.length : 0;
+    var hist = (appState && appState.history) ? Object.keys(appState.history).length : 0;
+    var streak = (appState && appState.streak) ? (appState.streak.count || 0) : 0;
+    return '📦 Vocaba daily backup · ' + n + ' words · ' + hist + ' days · streak ' + streak + ' · ' + tgTodayStr();
+  }
+
+  async function tgSendBackup() {
+    var c = tgConfig();
+    if (!c.token || !c.chatId) return { ok: false, reason: 'not-configured' };
+    if (typeof fetch !== 'function') return { ok: false, reason: 'no-fetch' };
+    var json;
+    try { json = (typeof SRS !== 'undefined' && SRS.serializeState) ? SRS.serializeState(appState, { savedAt: new Date().toISOString() }) : JSON.stringify(appState); }
+    catch (e) { return { ok: false, reason: 'serialize-failed: ' + (e && e.message) }; }
+    var blob;
+    try { blob = new Blob([json], { type: 'application/json' }); } catch (e) { return { ok: false, reason: 'blob-failed' }; }
+    var fd = new FormData();
+    fd.append('chat_id', c.chatId);
+    try { fd.append('document', blob, tgFilename()); } catch (e) { return { ok: false, reason: 'append-failed: ' + (e && e.message) }; }
+    fd.append('caption', tgCaption());
+    try {
+      var resp = await fetch('https://api.telegram.org/bot' + c.token + '/sendDocument', { method: 'POST', body: fd });
+      var data = await resp.json();
+      if (data && data.ok) {
+        try { localStorage.setItem(TG_LAST_KEY, tgTodayStr()); } catch (e) {}
+        return { ok: true };
+      }
+      return { ok: false, reason: (data && data.description) || 'telegram-error' };
+    } catch (e) {
+      return { ok: false, reason: 'network: ' + (e && e.message) };
+    }
+  }
+
+  // Синхронный guard (тестируем без async): решает, нужно ли отправлять сегодня.
+  function tgShouldSendToday() {
+    if (!tgIsConfigured()) return { send: false, reason: 'not-configured' };
+    if (tgLastSent() === tgTodayStr()) return { send: false, reason: 'already-sent-today' };
+    return { send: true, reason: 'due' };
+  }
+  async function tgMaybeDailyBackup() {
+    var g = tgShouldSendToday();
+    if (!g.send) return { ok: false, reason: g.reason, skipped: true };
+    return await tgSendBackup();
+  }
+  function tgStartScheduler() {
+    if (TG_TIMER) return;
+    TG_TIMER = setInterval(function () { try { tgMaybeDailyBackup(); } catch (e) {} }, 60 * 60 * 1000);
+  }
+
+  // ── UI: панель в #screen-data (инжектируется после «Backup & transfer») ──
+  function tgStatusText() {
+    if (!tgIsConfigured()) return 'Not configured — paste your bot token + chat ID.';
+    var last = tgLastSent();
+    return last ? 'Configured. Last backup sent: ' + last + '.' : 'Configured. No backup sent yet.';
+  }
+  function tgRenderStatus() { var el = document.getElementById('tg-status'); if (el) el.textContent = tgStatusText(); }
+  function tgPopulateInputs() {
+    var c = tgConfig();
+    var t = document.getElementById('tg-token'); if (t) t.value = c.token;
+    var ch = document.getElementById('tg-chat'); if (ch) ch.value = c.chatId;
+  }
+  function tgWirePanel() {
+    var save = document.getElementById('tg-save');
+    if (save) save.onclick = function () {
+      var t = document.getElementById('tg-token'), ch = document.getElementById('tg-chat');
+      try {
+        localStorage.setItem(TG_TOKEN_KEY, String((t && t.value) || '').trim());
+        localStorage.setItem(TG_CHAT_KEY, String((ch && ch.value) || '').trim());
+      } catch (e) {}
+      tgRenderStatus();
+      if (typeof showToast === 'function') showToast(tgIsConfigured() ? '☁️ Telegram settings saved.' : 'Enter both token and chat ID.', tgIsConfigured() ? 'info' : 'warning');
+    };
+    var send = document.getElementById('tg-send-now');
+    if (send) send.onclick = function () {
+      if (!tgIsConfigured()) { if (typeof showToast === 'function') showToast('Configure token + chat ID first.', 'warning'); return; }
+      send.disabled = true; var orig = send.textContent; send.textContent = '☁️ Sending…';
+      tgSendBackup().then(function (r) {
+        send.disabled = false; send.textContent = orig;
+        tgRenderStatus();
+        if (typeof showToast === 'function') showToast(r.ok ? '☁️ Backup sent to Telegram.' : 'Telegram backup failed: ' + (r.reason || ''), r.ok ? 'info' : 'error');
+      });
+    };
+  }
+  function tgEnsurePanel() {
+    if (document.getElementById('tg-backup-panel')) { tgPopulateInputs(); tgRenderStatus(); return; }
+    var anchor = document.getElementById('btn-backup-json');
+    if (!anchor) return;
+    var card = anchor.closest('.section-card');
+    if (!card || !card.parentNode) return;
+    var panel = document.createElement('div');
+    panel.className = 'section-card margin-top';
+    panel.id = 'tg-backup-panel';
+    var inpStyle = 'padding:8px 10px;border-radius:var(--radius-sm);border:1px solid rgba(var(--overlay-rgb),0.18);background:rgba(var(--overlay-rgb),0.05);color:var(--text-main);font-size:13px;';
+    panel.innerHTML =
+      '<h3>☁️ Telegram daily backup</h3>' +
+      '<p class="subtitle margin-top">A snapshot of your data is sent to your Telegram chat every day — on launch, and hourly while the app is open (so it catches midnight). Keep the bot token private; it is stored only in this browser, never in git. Restore by downloading the file from Telegram and using Restore Backup above.</p>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">' +
+        '<label style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:220px;">' +
+          '<span class="subtitle" style="font-weight:600;">Bot token</span>' +
+          '<input type="password" id="tg-token" placeholder="123456789:AA…" autocomplete="off" style="' + inpStyle + '">' +
+        '</label>' +
+        '<label style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px;">' +
+          '<span class="subtitle" style="font-weight:600;">Chat ID</span>' +
+          '<input type="text" id="tg-chat" placeholder="e.g. 123456789" autocomplete="off" style="' + inpStyle + '">' +
+        '</label>' +
+      '</div>' +
+      '<div class="backup-actions-grid margin-top">' +
+        '<div class="backup-action">' +
+          '<button class="btn btn-primary" id="tg-save">💾 Save settings</button>' +
+          '<p class="subtitle" id="tg-status">Not configured.</p>' +
+        '</div>' +
+        '<div class="backup-action">' +
+          '<button class="btn btn-secondary" id="tg-send-now">☁️ Send backup now</button>' +
+          '<p class="subtitle">Push a fresh snapshot to Telegram now — also tests your token + chat ID.</p>' +
+        '</div>' +
+      '</div>';
+    card.parentNode.insertBefore(panel, card.nextSibling);
+    tgPopulateInputs();
+    tgWirePanel();
+    tgRenderStatus();
+  }
+
+  window.VocabaTelegram = {
+    tgConfig: tgConfig, tgIsConfigured: tgIsConfigured, tgLastSent: tgLastSent,
+    tgTodayStr: tgTodayStr, tgFilename: tgFilename, tgCaption: tgCaption,
+    tgSendBackup: tgSendBackup, tgShouldSendToday: tgShouldSendToday,
+    tgMaybeDailyBackup: tgMaybeDailyBackup, tgStartScheduler: tgStartScheduler,
+    tgEnsurePanel: tgEnsurePanel, tgRenderStatus: tgRenderStatus,
+    _keys: { token: TG_TOKEN_KEY, chat: TG_CHAT_KEY, last: TG_LAST_KEY }
+  };
+
   /* ============ MISSION STATUS (21.09) — лёгкий пересчёт для in-app баннера
      (renderReminderBanner). ОС-нотификации УБРАНЫ 21.09 (фидбек: запрос разрешения
      каждый запуск раздражал). Напоминание теперь только видимое — полоса #dm-reminder
@@ -1069,6 +1225,7 @@
     wireDailyMission();
     watchDashboardActivation();
     renderDailyMission();
+    tgEnsurePanel();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

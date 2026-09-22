@@ -217,6 +217,13 @@ async function initApp() {
   if (sessionSeed === null) sessionSeed = SRS.todayString();
 
   await loadData();
+  // (21.09) Telegram daily backup — catch-up на запуск (если сегодня не отправляли)
+  // + ежечасный планировщик (ловит полночь, пока приложение открыто). После loadData,
+  // чтобы appState был наполнен. Модуль VocabaTelegram в datacare.js; не настроено → тихо no-op.
+  if (window.VocabaTelegram) {
+    try { window.VocabaTelegram.tgMaybeDailyBackup(); } catch (e) {}
+    try { window.VocabaTelegram.tgStartScheduler(); } catch (e) {}
+  }
   setupNavigation();
   setupEventHandlers();
   setupSwipeGestures();
