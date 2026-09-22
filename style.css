@@ -3850,8 +3850,10 @@ input, textarea,
   color: var(--text-soft);
 }
 
-/* Left menu rides a little higher now the sidebar header is gone. */
-.sidebar { padding-top: 14px; }
+/* Left menu rides a little higher now the sidebar header is gone.
+   16px = content padding (32) − dashboard pull-up (−16): the first nav item
+   sits exactly on the hero buttons' top edge (2px alignment fix, 21.09). */
+.sidebar { padding-top: 16px; }
 
 /* Bigger primary dashboard actions (scoped to the dashboard so the group
    detail modal keeps its compact hero). */
