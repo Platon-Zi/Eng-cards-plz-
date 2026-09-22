@@ -3415,9 +3415,10 @@ function renderDictionary() {
     return String(SRS.derivedGroup(c)).toLowerCase() === groupFilter;
   });
 
-  // (21.09) Мусор: псевдо-карточка 🗑️ Trash в конце сетки. Показывается, если
-  // в мусоре есть слова И (нет поиска/фильтра ИЛИ запрос содержит 'trash').
-  const showTrash = !!(window.VocabaTrash && window.VocabaTrash.trashCount() > 0)
+  // (21.09) Мусор: псевдо-карточка 🗑️ Trash ВСЕГДА в конце словаря (даже пустая) —
+  // иначе пользователь не найдёт её и не поймёт, как добавить слова. Прячется только
+  // при групповом фильтре (Trash не входит ни в одну группу) или чужом поиске.
+  const showTrash = !!(window.VocabaTrash)
     && (searchQuery.includes('trash') || (!searchQuery && !groupFilter));
 
   if (filtered.length === 0 && !showTrash) {
@@ -3480,6 +3481,7 @@ function renderDictionary() {
         <div class="dict-card-actions">
           <button class="btn-dict-stats" title="Personal stats of this card">📊 Stats</button>
           <button class="btn-dict-edit">✏️ Edit</button>
+          <button class="btn-dict-trash" title="Move to Trash — hide from dictionary, pause repetition (reversible)">🗑️ Trash</button>
           <button class="btn-dict-delete">🗑️ Delete</button>
         </div>
       </div>
@@ -3487,7 +3489,7 @@ function renderDictionary() {
 
     // Клик по карточке → тренировка этого слова ОБОИМИ сторонами.
     cardEl.addEventListener('click', (e) => {
-      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete') || e.target.closest('.btn-dict-stats') || e.target.closest('.btn-speak')) return;
+      if (e.target.closest('.btn-dict-edit') || e.target.closest('.btn-dict-delete') || e.target.closest('.btn-dict-trash') || e.target.closest('.btn-dict-stats') || e.target.closest('.btn-speak')) return;
       startTrainingSession('single_word', null, card.id);
     });
 
@@ -3530,6 +3532,17 @@ function renderDictionary() {
       renderDashboard();
       if (typeof renderGroupsScreen === 'function') renderGroupsScreen();
       showToast(saved ? `🗑️ “${card.word}” deleted` : 'Removed locally, but saving was blocked — see console', saved ? 'info' : 'error');
+    });
+
+    // (21.09) Прямой перенос в мусорку с карточки слова — один клик, без подтверждения
+    // (действие обратимо: ↩ Restore из модалки Trash). Альтернативный путь — 📊 Stats.
+    cardEl.querySelector('.btn-dict-trash').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (window.VocabaTrash && window.VocabaTrash.trashCard(card.id)) {
+        renderDictionary();
+        renderDashboard();
+        if (typeof showToast === 'function') showToast('🗑️ Moved to Trash — out of repetition. Restore from the 🗑️ Trash card at the end of the dictionary.', 'info');
+      }
     });
 
     grid.appendChild(cardEl);

@@ -939,7 +939,7 @@
     var arr = trashLoad();
     body.innerHTML = '';
     if (!arr.length) {
-      body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Trash is empty. Move words here from a card\'s 📊 Stats view to hide them from the dictionary and pause their repetition.</p>';
+      body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Trash is empty. To archive a word, click the 🗑️ Trash button on its card (or open its 📊 Stats → "Move to Trash"). Archived words leave the repetition system and disappear from the dictionary — restore them here with ↩ Restore.</p>';
       return;
     }
     arr.forEach(function (c) {
