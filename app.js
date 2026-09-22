@@ -4771,7 +4771,12 @@ function speakUtteranceAsync(text, rate = 0.88, isLetter = false) {
 
     const utt = new SpeechSynthesisUtterance(textToSpeak);
     if (!englishVoice) loadVoices();
-    if (englishVoice) utt.voice = englishVoice;
+    // (21.09) englishVoice может быть null, если voices подгрузились ПОЗЖЕ кэша
+    // (стартовая гонка getVoices()). Пробуем свежий getVoices() в момент речи —
+    // иначе utt.voice остаётся дефолтным и на Linux без англ. голос = молчок.
+    var _v = englishVoice;
+    if (!_v) { try { var _vs = window.speechSynthesis.getVoices() || []; _v = _vs.find(function (x) { return x && /^en/i.test(x.lang); }) || null; } catch (e) {} }
+    if (_v) utt.voice = _v;
     utt.lang = 'en-US';
     utt.rate = Math.max(0.5, Math.min(1.5, rate || 0.88));
     utt.pitch = 1;
@@ -4806,7 +4811,9 @@ function speakEnglish(text) {
   // пользователя (19.09): прежнее 0.88 воспринималось как затянутое.
   // Намеренно НЕ читаем spellingState.settings.speechRate: тот слайдер —
   // учебный темп диктанта Spelling Studio и карточек касаться не должен.
-  speakUtteranceAsync(text, 1, false);
+  // (21.09) cancel() асинхронен на некоторых платформах — speak() сразу после
+  // него может затереть новое слово (вероятная причина «слово не произносится»).
+  setTimeout(function () { speakUtteranceAsync(text, 1, false); }, 0);
 }
 
 function startSpellingDictation() {
