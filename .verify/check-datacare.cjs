@@ -522,6 +522,34 @@ const $ = sel => d.querySelector(sel);
   rec('reminders: ✖ прячет баннер до завтра (localStorage = today)',
     afterDismiss === true && dismissedVal === todayStr, `${afterDismiss} | "${dismissedVal}" vs "${todayStr}"`);
 
+  // ── 18. Trash (мусорка): перенос слова из базы, выход из SRS, восстановление ──
+  w.eval(`localStorage.removeItem('vocaba_trash'); switchScreen('dictionary'); renderDictionary();`);
+  rec('trash: пустая мусорка не рисует псевдо-карточку (trashCount=0, нет .trash-card)',
+    w.eval('window.VocabaTrash.trashCount()') === 0 && w.eval('!document.querySelector(".trash-card")') === true);
+  const trashId = w.eval(`(function(){ var b=document.querySelector('.btn-dict-stats'); return b ? b.dataset.cardId : null; })()`);
+  const dictBefore = Number(w.eval(`document.querySelectorAll('.dict-card').length`));
+  const trashed = w.eval(`window.VocabaTrash.trashCard(${JSON.stringify(trashId)})`);
+  w.eval(`renderDictionary();`);
+  const trashPresent = w.eval(`!!document.querySelector('.trash-card')`);
+  const dictAfter = Number(w.eval(`document.querySelectorAll('.dict-card').length`)) - (trashPresent ? 1 : 0);
+  const trashEntry = Number(w.eval(`JSON.parse(localStorage.getItem('vocaba_trash')||'[]').length`));
+  rec('trash: trashCard убирает слово из словаря и пишет снимок в localStorage (выход из SRS)',
+    trashId !== null && trashed === true && dictAfter === dictBefore - 1 && trashEntry === 1 && w.eval('window.VocabaTrash.trashCount()') === 1);
+  rec('trash: псевдо-карточка 🗑️ Trash появляется в конце сетки (role=button, кликабельна)',
+    trashPresent === true && w.eval(`document.querySelector('.trash-card').getAttribute('role')`) === 'button');
+  rec('trash: перенесённое слово исчезло из сетки (нет .btn-dict-stats с этим id)',
+    w.eval(`!document.querySelector('.btn-dict-stats[data-card-id="${trashId}"]')`) === true);
+  w.eval(`document.getElementById('dict-search-input').value='trash'; renderDictionary();`);
+  rec('trash: поиск "trash" находит псевдо-карточку (findable by English search)',
+    w.eval(`!!document.querySelector('.trash-card')`) === true);
+  w.eval(`document.getElementById('dict-search-input').value=''; renderDictionary();`);
+  const restored = w.eval(`window.VocabaTrash.restoreCard(${JSON.stringify(trashId)})`);
+  w.eval(`renderDictionary();`);
+  const trashAfterRestore = w.eval(`!!document.querySelector('.trash-card')`);
+  const dictRestored = Number(w.eval(`document.querySelectorAll('.dict-card').length`)) - (trashAfterRestore ? 1 : 0);
+  rec('trash: restoreCard возвращает слово в словарь и чистит localStorage',
+    restored === true && dictRestored === dictBefore && w.eval('window.VocabaTrash.trashCount()') === 0);
+
   rec('ноль ошибок загрузки/выполнения', errors.length === 0, errors.slice(0, 3).join(' | '));
 
   const failed = checks.filter(c => !c.ok);

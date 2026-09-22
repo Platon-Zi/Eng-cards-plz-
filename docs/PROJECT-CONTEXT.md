@@ -126,12 +126,13 @@ BACKLOG (осознанно не чинили): **L2** midnight-край L1 (Eas
 - Экран Data & Backup делит .stats-kpi-grid (у него тоже 4 KPI) — правило ему подходит.
 
 ### 3n. Sam-сессия 21.09: напоминания + security/bug-аудит (НЕ ТЕРЯТЬ!)
-- **Daily Reminders** (datacare.js VocabaReminder): HTML5 Notification, будит если Mission не закрыта, троттл 1/час, `vocaba_reminders='0'` глушит. `window.VocabaMission={render}` — app.js зовёт после loadData (фикс F1 гонки init↔loadData → Mission не стейл).
+- **Daily Mission status** (datacare.js VocabaReminder): `missionStatus(today)` — лёгкий пересчёт дневной Mission. **ОС-нотификации УБРАНЫ 21.09** (notify/maybeRemind/requestReminderPermission/startReminders + таймеры; запрос разрешения при каждом запуске раздражал). `window.VocabaReminder={missionStatus}`. `window.VocabaMission={render}` — app.js зовёт после loadData (фикс F1 гонки init↔loadData → Mission не стейл).
 - **Security (XSS→RCE)**: 13 escapeHtml-обёрток в app.js (makeGroupCard/renderWordTable/renderSearch/handleFileSelected/typing+listening results). nodeIntegration=true → любой innerHTML с данными карточки = RCE; ВСЕ новые — через escapeHtml.
 - **F3**: undo '0'-банка (`answer===null`) восстанавливает done для ВСЕХ cardId-записей.
 - **F4**: showToast cap ≤5; **F7**: criticalScore fragility `rc>0?fc/rc:0`; **F8**: комментарий хоткея.
-- **In-app reminder banner** (21.09): datacare `renderReminderBanner` → полоса `#dm-reminder` над `#daily-mission`, видима пока Mission не закрыта («⏰ Daily mission not done — N reviews · M/K new words left»); ✖ = скрыть до завтра (`vocaba_reminder_dismissed`=today); «Practice now» → `startTrainingSession('critical')`. Элемент динамический (без index.html). Дополняет ОС-нотификации (могут блокироваться). Тест check-datacare §17.
-- Тесты: check-datacare §16+§17 (VocabaReminder: ОС-нотификации + in-app баннер) → 89/89. verify ALL GREEN.
+- **In-app reminder banner** (21.09): datacare `renderReminderBanner` → полоса `#dm-reminder` над `#daily-mission`, видима пока Mission не закрыта («⏰ Daily mission not done — N reviews · M/K new words left»); ✖ = скрыть до завтра (`vocaba_reminder_dismissed`=today); «Practice now» → `startTrainingSession('critical')`. Элемент динамический (без index.html). **Заменила ОС-нотификации** (прав не требует). Тест check-datacare §17.
+- **Trash (мусорка)** (21.09, datacare `VocabaTrash`): перенос слова из `appState.cards` в localStorage `vocaba_trash` (снимок) → слово выпадает из ВСЕХ SRS-очередей и прячется из словаря (без правок srs.js — карты нет в `appState.cards`). `validateState` пропускает shrink через `removedIds`. Словарь рисует псевдо-карточку 🗑️ Trash в конце (`trashCardEl`): видна, если мусор не пуст И (нет поиска/фильтра ИЛИ запрос содержит 'trash'); клик → модалка `#modal-trash` (статична в index.html) со списком + ↩ Restore. Перенос — кнопкой «🗑️ Move to Trash» в Card Stats (📊). Escape закрывает (app.js модал-лист). Тест check-datacare §18.
+- Тесты: check-datacare §16 (missionStatus) + §17 (баннер) + §18 (мусорка) → 91/91. verify ALL GREEN (44+417+10+91+58).
 
 ## 4. Система цветовых тем (моя территория)
 - 4 темы: `html[data-theme="beta"|"midnight"|"light"|"sandstone"]`, id — контракт (`index.html` anti-FOUC shim + theme.js `THEMES[]` + localStorage).

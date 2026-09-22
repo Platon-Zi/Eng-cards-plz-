@@ -2106,6 +2106,17 @@ Return ONLY a valid clean JSON array [ { ... } ] — no intro text, no markdown 
     </div>
   </div>
 
+  <!-- TRASH MODAL (21.09) — «мусорка»: тело инжектирует datacare.js (VocabaTrash) -->
+  <div id="modal-trash" class="modal-overlay hidden">
+    <div class="modal-content glass-card" role="dialog" aria-modal="true" aria-labelledby="trash-title" style="max-width:560px;">
+      <div class="modal-header">
+        <h3 id="trash-title">🗑️ Trash</h3>
+        <button class="btn-close-modal" id="trash-close" aria-label="Close">✖</button>
+      </div>
+      <div id="trash-body" style="padding:12px 16px;max-height:60vh;overflow:auto;"></div>
+    </div>
+  </div>
+
   <!-- UNIFIED GROUP DETAIL MODAL -->
   <div id="modal-group-detail" class="modal-overlay hidden">
     <div class="modal-content glass-card" role="dialog" aria-modal="true" aria-labelledby="gd-title" style="max-width: 860px; width: 95%;">

@@ -2730,7 +2730,9 @@ function setupEventHandlers() {
         document.getElementById('modal-manage-group-words'),
         // (20.09) Модалка личной статистики карточки — инжектируется datacare.js
         // лениво; до первого открытия её нет в DOM (find ниже терпит null).
-        document.getElementById('modal-card-stats')
+        document.getElementById('modal-card-stats'),
+        // (21.09) Мусорка — тоже лениво инжектируется модулем VocabaTrash.
+        document.getElementById('modal-trash')
       ];
       const openModal = modals.find(m => m && !m.classList.contains('hidden'));
       if (openModal) {
@@ -3389,7 +3391,12 @@ function renderDictionary() {
     return String(SRS.derivedGroup(c)).toLowerCase() === groupFilter;
   });
 
-  if (filtered.length === 0) {
+  // (21.09) Мусор: псевдо-карточка 🗑️ Trash в конце сетки. Показывается, если
+  // в мусоре есть слова И (нет поиска/фильтра ИЛИ запрос содержит 'trash').
+  const showTrash = !!(window.VocabaTrash && window.VocabaTrash.trashCount() > 0)
+    && (searchQuery.includes('trash') || (!searchQuery && !groupFilter));
+
+  if (filtered.length === 0 && !showTrash) {
     grid.innerHTML = `<div class="dict-empty" style="grid-column: 1 / -1; text-align:center; color: var(--text-muted); padding: 30px;">
       ${escapeHtml(groupFilter ? filterName : 'Dictionary')} is empty. Click “Add Words” to get started.</div>`;
     return;
@@ -3503,6 +3510,10 @@ function renderDictionary() {
 
     grid.appendChild(cardEl);
   });
+
+  if (showTrash && window.VocabaTrash) {
+    grid.appendChild(window.VocabaTrash.trashCardEl());
+  }
 }
 
 // STATISTICS & HEATMAP RENDERER

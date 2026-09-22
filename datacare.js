@@ -757,6 +757,7 @@
     html += '</div>';
     if (pct !== null) html += '<div class="cs-success-track"><div class="cs-success-fill" style="width:' + pct + '%;"></div></div>';
     html += '</div>';
+    html += '<button class="btn btn-secondary" id="cs-trash" style="margin-top:12px;width:100%;padding:8px;color:var(--accent-red);">🗑️ Move to Trash</button>';
     return html;
   }
 
@@ -816,9 +817,158 @@
     if (speak && typeof attachSpeakHandler === 'function') {
       try { attachSpeakHandler(speak, card.word); } catch (e) {}
     }
+    var trashBtn = document.getElementById('cs-trash');
+    if (trashBtn && window.VocabaTrash) {
+      trashBtn.onclick = function () {
+        if (window.VocabaTrash.trashCard(card.id)) {
+          csClose();
+          if (typeof renderDictionary === 'function') renderDictionary();
+          if (typeof renderDashboard === 'function') renderDashboard();
+          if (typeof showToast === 'function') showToast('🗑️ Moved to Trash — out of repetition.', 'info');
+        }
+      };
+    }
   }
 
   window.VocabaCardStats = { open: csOpen, close: csClose };
+
+  /* ============ TRASH (21.09) — «мусорка» для слов. Карточка переносом
+     уходит из appState.cards в localStorage('vocaba_trash') (полный снимок):
+     тем самым автоматически выпадает из ВСЕХ SRS-очередей (build*Queue
+     итерируют appState.cards) и прячется из словаря (renderDictionary рисует
+     только appState.cards). validateState пропускает shrink через removedIds.
+     Восстановление — обратный перенос. Словарь показывает мусор как
+     псевдо-карточку 🗑️ Trash в конце сетки (поиск 'trash' её находит); клик
+     открывает модалку со списком + ↩ Restore. Перенос инициируется кнопкой
+     «🗑️ Move to Trash» в Card Stats (📊) — это и есть «зайти в само слово». */
+  var TRASH_KEY = 'vocaba_trash';
+
+  function trashLoad() {
+    try { return JSON.parse(localStorage.getItem(TRASH_KEY)) || []; } catch (e) { return []; }
+  }
+  function trashSave(arr) {
+    try { localStorage.setItem(TRASH_KEY, JSON.stringify(arr || [])); } catch (e) {}
+  }
+  function trashCount() { return trashLoad().length; }
+  function trashFind(cardId) {
+    var arr = trashLoad();
+    for (var i = 0; i < arr.length; i++) { if (arr[i] && arr[i].id === cardId) return i; }
+    return -1;
+  }
+
+  // saveData асинхронен (Promise) — глотаем и sync-бросок, и rejection,
+  // чтобы перенос в мусорку не падал на IPC/сериализации в любом окружении.
+  function trashPersist(args) {
+    try {
+      if (typeof saveData !== 'function') return;
+      var _p = args ? saveData(args) : saveData();
+      if (_p && typeof _p.then === 'function') _p.catch(function () {});
+    } catch (e) {}
+  }
+
+  function trashCard(cardId) {
+    if (!appState || !Array.isArray(appState.cards)) return false;
+    var idx = -1, snap = null;
+    for (var i = 0; i < appState.cards.length; i++) {
+      if (appState.cards[i] && appState.cards[i].id === cardId) { idx = i; snap = JSON.parse(JSON.stringify(appState.cards[i])); break; }
+    }
+    if (idx < 0 || !snap) return false;
+    var arr = trashLoad();
+    if (trashFind(cardId) < 0) arr.unshift(snap);   // свежие сверху, без дублей
+    trashSave(arr);
+    appState.cards.splice(idx, 1);
+    trashPersist({ removedIds: [cardId] });
+    return true;
+  }
+  function restoreCard(cardId) {
+    var arr = trashLoad();
+    var at = trashFind(cardId);
+    if (at < 0) return false;
+    var snap = arr[at];
+    arr.splice(at, 1);
+    trashSave(arr);
+    if (appState && Array.isArray(appState.cards)) {
+      var dup = -1;
+      for (var i = 0; i < appState.cards.length; i++) { if (appState.cards[i] && appState.cards[i].id === cardId) { dup = i; break; } }
+      if (dup < 0) appState.cards.push(snap);
+    }
+    trashPersist();
+    return true;
+  }
+
+  // Псевдо-карточка для конца словарной сетки (показывается, если в мусоре
+  // что-то есть И (нет поискового запроса) ИЛИ запрос содержит 'trash').
+  function trashCardEl() {
+    var el = document.createElement('div');
+    el.className = 'dict-card trash-card';
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-label', 'Open Trash');
+    el.style.cssText = 'cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:16px;border:1px dashed var(--accent);border-radius:12px;background:rgba(var(--overlay-rgb),0.05);';
+    var n = trashCount();
+    var head = document.createElement('div');
+    head.style.cssText = 'display:flex;align-items:center;gap:8px;font-size:16px;font-weight:600;color:var(--accent);';
+    head.textContent = '🗑️ Trash';
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:12px;color:var(--text-muted);';
+    sub.textContent = n + ' word' + (n === 1 ? '' : 's') + ' archived — out of SRS. Click to manage.';
+    el.appendChild(head); el.appendChild(sub);
+    el.onclick = function () { trashOpen(); };
+    return el;
+  }
+
+  function trashEnsureModal() {
+    var ov = document.getElementById('modal-trash');
+    if (!ov) {
+      ov = document.createElement('div');
+      ov.id = 'modal-trash';
+      ov.className = 'modal-overlay hidden';
+      ov.innerHTML = '<div class="modal-content glass-card" role="dialog" aria-modal="true" aria-labelledby="trash-title" style="max-width:560px;">'
+        + '<div class="modal-header"><h3 id="trash-title">🗑️ Trash</h3>'
+        + '<button class="btn-close-modal" id="trash-close" aria-label="Close">✖</button></div>'
+        + '<div id="trash-body" style="padding:12px 16px;max-height:60vh;overflow:auto;"></div></div>';
+      document.body.appendChild(ov);
+    }
+    var cl = document.getElementById('trash-close');
+    if (cl) cl.onclick = function () { trashClose(); };
+    return ov;
+  }
+  function trashRenderBody() {
+    var body = document.getElementById('trash-body');
+    if (!body) return;
+    var arr = trashLoad();
+    body.innerHTML = '';
+    if (!arr.length) {
+      body.innerHTML = '<p style="color:var(--text-muted);text-align:center;padding:20px;">Trash is empty. Move words here from a card\'s 📊 Stats view to hide them from the dictionary and pause their repetition.</p>';
+      return;
+    }
+    arr.forEach(function (c) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border:1px solid rgba(var(--overlay-rgb),0.12);border-radius:8px;margin-bottom:6px;';
+      var left = document.createElement('div');
+      var w = document.createElement('b'); w.textContent = c.word || ''; left.appendChild(w);
+      var t = document.createElement('span'); t.style.cssText = 'color:var(--text-muted);margin-left:8px;font-size:13px;'; t.textContent = '— ' + (c.translation || ''); left.appendChild(t);
+      var btn = document.createElement('button');
+      btn.className = 'btn btn-secondary';
+      btn.style.cssText = 'padding:4px 10px;font-size:12px;';
+      btn.textContent = '↩ Restore';
+      btn.onclick = function () {
+        restoreCard(c.id);
+        trashRenderBody();
+        if (typeof renderDictionary === 'function') renderDictionary();
+        if (typeof renderDashboard === 'function') renderDashboard();
+      };
+      row.appendChild(left); row.appendChild(btn);
+      body.appendChild(row);
+    });
+  }
+  function trashOpen() { var ov = trashEnsureModal(); trashRenderBody(); ov.classList.remove('hidden'); }
+  function trashClose() { var ov = document.getElementById('modal-trash'); if (ov) ov.classList.add('hidden'); }
+
+  window.VocabaTrash = {
+    trashCard: trashCard, restoreCard: restoreCard, trashCount: trashCount,
+    trashCardEl: trashCardEl, open: trashOpen, close: trashClose, trashLoad: trashLoad
+  };
 
   /* ============ MISSION STATUS (21.09) — лёгкий пересчёт для in-app баннера
      (renderReminderBanner). ОС-нотификации УБРАНЫ 21.09 (фидбек: запрос разрешения
