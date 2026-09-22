@@ -820,24 +820,10 @@
 
   window.VocabaCardStats = { open: csOpen, close: csClose };
 
-  /* ============ DAILY REMINDERS (20.09, sam-сессия) — завершение исходного
-     запроса пользователя «дневные задания И напоминания»: панель Mission (задания)
-     была, системных напоминаний (напоминания) не было. Electron renderer поддерживает
-     HTML5 Notification нативно (без правок main.js — не лезть в чужую территорию).
-     Стратегия: негавристичная, не спамит. Тикает на старте + раз в 25 мин; будит лишь
-     если Mission НЕ закрыта (есть due-долг ИЛИ не достигнута цель новых слов);
-     троттл ≤ 1 напоминания в час (localStorage-штамп); клик → фокус окна + дашборд.
-     Отключение: localStorage 'vocaba_reminders' = '0' (UI-тоггл — future nice-to-have). */
-  var REMINDER_KEY = 'vocaba_last_reminder';
-  var REMINDERS_ENABLED_KEY = 'vocaba_reminders';
-  var REMINDER_THROTTLE_MS = 60 * 60 * 1000;   // не чаще раза в час
-  var REMINDER_TICK_MS = 25 * 60 * 1000;       // проверка раз в 25 мин
-  var REMINDER_FIRST_MS = 90 * 1000;           // первая проверка через 90с после старта
-
-  function remindersEnabled() {
-    try { return localStorage.getItem(REMINDERS_ENABLED_KEY) !== '0'; } catch (e) { return true; }
-  }
-
+  /* ============ MISSION STATUS (21.09) — лёгкий пересчёт для in-app баннера
+     (renderReminderBanner). ОС-нотификации УБРАНЫ 21.09 (фидбек: запрос разрешения
+     каждый запуск раздражал). Напоминание теперь только видимое — полоса #dm-reminder
+     на дашборде, без запроса прав. */
   // Лёгкий пересчёт статуса Mission из тех же источников, что renderDailyMission —
   // изолирован от DOM-рендера, доступен тестам через window.VocabaReminder.
   function missionStatus(today) {
@@ -861,72 +847,7 @@
     };
   }
 
-  function notify(title, body) {
-    try {
-      if (typeof Notification === 'undefined') return false;
-      if (Notification.permission === 'denied') return false;
-      if (Notification.permission !== 'granted') return false;
-      var n = new Notification(title, { body: body, icon: 'icon.png' });
-      // Клик → поднять окно (window.focus в Electron работает из рендерера) и открыть
-      // дашборд с Mission. switchScreen — протёкшая функция app.js (typeof-guard).
-      n.onclick = function () {
-        try { if (typeof window.focus === 'function') window.focus(); } catch (e) {}
-        try { if (typeof switchScreen === 'function') switchScreen('dashboard'); } catch (e) {}
-        try { n.close(); } catch (e) {}
-      };
-      return true;
-    } catch (e) { return false; }
-  }
-
-  function lastReminderTs() {
-    try { return parseInt(localStorage.getItem(REMINDER_KEY), 10) || 0; } catch (e) { return 0; }
-  }
-  function markReminder(ts) {
-    try { localStorage.setItem(REMINDER_KEY, String(ts)); } catch (e) {}
-  }
-
-  // force=true обходит троттл (для тестов и ручного «напомни сейчас»).
-  function maybeRemind(force) {
-    if (!remindersEnabled()) return null;
-    var now = Date.now();
-    if (!force && (now - lastReminderTs()) < REMINDER_THROTTLE_MS) return null;
-    var today = csToday();
-    var st = missionStatus(today);
-    if (st.reviewDone && st.learnDone) return null;   // Mission закрыта — не тревожим
-    var parts = [];
-    if (!st.reviewDone) parts.push('🔥 ' + st.debt + ' review' + (st.debt === 1 ? '' : 's') + ' still due');
-    if (!st.learnDone) parts.push('🌱 ' + st.learned + '/' + st.goal + ' new words');
-    if (!parts.length) return null;
-    var body = parts.join(' · ');
-    var ok = notify('Vocaba — Today\'s Mission', body);
-    if (ok) markReminder(now);
-    return { body: body, ok: ok };
-  }
-
-  function requestReminderPermission() {
-    try {
-      if (typeof Notification === 'undefined') return;
-      if (Notification.permission === 'default' && typeof Notification.requestPermission === 'function') {
-        var r = Notification.requestPermission();
-        if (r && typeof r.then === 'function') r.then(function () {});
-      }
-    } catch (e) {}
-  }
-
-  var reminderTimer = null;
-  var reminderFirstTimer = null;
-  function startReminders() {
-    requestReminderPermission();
-    if (reminderFirstTimer) clearTimeout(reminderFirstTimer);
-    reminderFirstTimer = setTimeout(function () { try { maybeRemind(false); } catch (e) {} }, REMINDER_FIRST_MS);
-    if (reminderTimer) clearInterval(reminderTimer);
-    reminderTimer = setInterval(function () { try { maybeRemind(false); } catch (e) {} }, REMINDER_TICK_MS);
-  }
-
-  window.VocabaReminder = {
-    missionStatus: missionStatus, notify: notify, maybeRemind: maybeRemind,
-    startReminders: startReminders
-  };
+  window.VocabaReminder = { missionStatus: missionStatus };
 
   /* ============ IN-APP REMINDER BANNER (21.09) — «простенькая система
      напоминаний» для веб-приложения. ОС-нотификации (VocabaReminder.notify)
@@ -998,7 +919,6 @@
     wireDailyMission();
     watchDashboardActivation();
     renderDailyMission();
-    startReminders();   // (20.09) ежедневные напоминания — завершение исходного запроса «и напоминания»
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
