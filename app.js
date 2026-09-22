@@ -434,6 +434,30 @@ async function loadData() {
   if (skippedJunk) console.warn('[load] пропущено битых записей:', skippedJunk);
 
   await migrateAppStateToSRS('loadData:' + candidates[0].source, mergeCtx);
+
+  // (21.09) Защита от пустой базы: если после мерджа+миграции appState.cards оказался
+  // пуст (источник-победитель пуст, а файл/глобал не подхватились на этом рантайме),
+  // принудительно поднимаем карточки+историю из доступного источника — статистика
+  // не должна быть пустой при наличии базы на диске.
+  if (!appState || !Array.isArray(appState.cards) || appState.cards.length === 0) {
+    console.warn('[load] appState.cards пуст после мерджа/миграции — аварийный подъём базы');
+    var _recoverySrc = null;
+    try { if (typeof window !== 'undefined' && window.LEITNER_DATA && Array.isArray(window.LEITNER_DATA.cards) && window.LEITNER_DATA.cards.length) _recoverySrc = window.LEITNER_DATA; } catch (e) {}
+    if (!_recoverySrc) {
+      try { var _fs = require('fs'), _pth = require('path'); var _fp = _pth.join(__dirname, 'data', 'leitner_data.json'); if (_fs.existsSync(_fp)) _recoverySrc = JSON.parse(_fs.readFileSync(_fp, 'utf-8')); } catch (e) {}
+    }
+    if (_recoverySrc && Array.isArray(_recoverySrc.cards) && _recoverySrc.cards.length) {
+      appState = appState || {};
+      appState.cards = _recoverySrc.cards.slice();
+      if (!appState.history || !Object.keys(appState.history).length) appState.history = _recoverySrc.history || {};
+      if (!appState.streak) appState.streak = _recoverySrc.streak || { count: 0, last_date: null };
+      if (!Array.isArray(appState.deleted_ids)) appState.deleted_ids = _recoverySrc.deleted_ids || [];
+      console.warn('[load] аварийно восстановлено карточек:', appState.cards.length, '| истории дней:', Object.keys(appState.history || {}).length);
+    } else {
+      console.warn('[load] аварийный подъём не удался — нет доступного источника с карточками');
+    }
+  }
+
   await saveData();
 }
 
