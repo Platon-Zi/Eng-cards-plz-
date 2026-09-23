@@ -4275,6 +4275,12 @@ input, textarea,
    уже попадает, дефолтное окно 1240px — нет. */
 @media (max-width: 1100px) {
   .action-grid { grid-template-columns: 1fr; }
+
+  /* Активный режим повторения (training): прячем левое меню — карточка
+     получает всю ширину окна. :has() реагирует живо и на вход/выход из
+     тренинга, и на ресайз окна, без JS; в полном окне не срабатывает.
+     Выход без меню доступен: кнопка «back» в шапке тренинга или Escape. */
+  .app-container:has(#screen-training.active) .sidebar { display: none; }
 }
 
 /* Daily-mission строчка (заголовок | плитки | цель) ниже 900px сидит в
