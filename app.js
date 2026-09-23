@@ -3574,6 +3574,24 @@ function renderStatistics() {
   renderMistakesTable();
 }
 
+// HALF-WINDOW RESIZE REFRESH (21.09)
+// При живом ресайзе окна (пол-экрана бок о бок с другим приложением) канвасы
+// статистики остаются нарисованными под старую ширину: Chart.js сам
+// responsive, а fallback-канвасы и heatmap-сетка меряют ширину только при
+// рендере. Дебаунс 250ms; перерисовываем только активный экран статистики.
+(function () {
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      try {
+        const statsScreen = document.getElementById('screen-stats');
+        if (statsScreen && statsScreen.classList.contains('active')) renderStatistics();
+      } catch (e) { /* рендер статистики не должен ломать ресайз */ }
+    }, 250);
+  });
+})();
+
 function renderHeatmap() {
   const grid = document.getElementById('heatmap-grid');
   if (!grid) return;

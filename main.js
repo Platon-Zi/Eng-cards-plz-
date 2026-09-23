@@ -49,7 +49,7 @@ function createWindow() {
   const win = new BrowserWindow({
     width: 1240,
     height: 840,
-    minWidth: 900,
+    minWidth: 640,  /* half-window mode: 1366-laptop half = 683 fits (was 900) */
     minHeight: 650,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
