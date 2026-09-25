@@ -1443,6 +1443,25 @@
     copy.kind = 'requeue';
     copy.repeat = used + 1;
     var at = Math.min(s.items.length, s.cursor + delay);
+    // A5-гармония (22.09, фидбек): «забытое» слово не должно приземляться
+    // рядом со своей ВТОРОЙ стороной. spreadSameCard разносит стороны на ≥3
+    // позиций, но вставка ровно на cursor+requeueDelay попадала в тот же
+    // коридор: обратка шла сразу после возврата слова, и только что показанный
+    // ответ давал «забытому» бесплатное «знаю». Уходим от второй стороны в
+    // окне ±2 вокруг точки вставки; если чистого места до конца нет — хвост
+    // (карточку потерять нельзя, как и в spreadSameCard).
+    if (item.cardId) {
+      var guard = 2;
+      var blocked = function (pos) {
+        for (var k = pos - guard; k <= pos + guard; k++) {
+          if (k < s.cursor || k >= s.items.length) continue;
+          var near = s.items[k];
+          if (near && near.key !== key && near.cardId === item.cardId) return true;
+        }
+        return false;
+      };
+      while (at < s.items.length && blocked(at)) at++;
+    }
     s.items.splice(at, 0, copy);
     s.order.splice(at, 0, key);
     return 'requeued';

@@ -2355,6 +2355,32 @@ describe('session container', () => {
     assert.equal(SRS.sessionRequeue(s3, null), 'capped', 'session: null item → capped');
   });
 
+  test('rule 19b: requeue уклоняется от второй стороны того же слова (22.09)', () => {
+    /* w:en_ru на позиции 0 отвечаем «забыл»; w:ru_en стоит на 5 — как после
+       spreadSameCard(gap 3). Прежняя вставка cursor+4=4 попадала в окно
+       обратки, и перевод шёл сразу за возвратом слова. Теперь копия обязана
+       держаться дальше ±2 от второй стороны. */
+    const items = [
+      it('w'), it('a'), it('b'), it('c'), it('d'),
+      it('w', 'ru_en'), it('e'), it('f'), it('g'), it('h')
+    ];
+    const s = SRS.createSession(items, { today: TODAY });
+    const r = SRS.sessionRequeue(s, s.items[0]);
+    assert.equal(r, 'requeued', 'rule 19b: requeue принят');
+    assert.equal(s.items.length, 11, 'rule 19b: длина +1, ничего не потеряно');
+    const copyIdx = s.items.findIndex((x) => x.kind === 'requeue');
+    const ruIdx = s.items.findIndex((x) => x.key === 'w:ru_en');
+    assert.ok(copyIdx > 0, 'rule 19b: копия вставлена');
+    assert.ok(Math.abs(copyIdx - ruIdx) > 2,
+      'rule 19b: копия дальше ±2 от обратки (dist=' + Math.abs(copyIdx - ruIdx) + ')');
+    assert.notEqual(s.order.indexOf('w:en_ru'), s.order.lastIndexOf('w:en_ru'),
+      'rule 19b: order зеркалит обе записи');
+    /* чистый случай: рядом нет второй стороны → позиция прежняя, cursor+delay */
+    const s4 = SRS.createSession([it('x'), it('y'), it('z'), it('q'), it('m'), it('n')], { today: TODAY });
+    SRS.sessionRequeue(s4, s4.items[0]);
+    assert.equal(s4.items[4].key, 'x:en_ru', 'rule 19b: без конфликта вставка прежняя — cursor+4');
+  });
+
   test('rule 19: sessionSkip — first skip moves to tail, second removes', () => {
     const s = SRS.createSession([it('a'), it('b'), it('c')], { today: TODAY });
     const r1 = SRS.sessionSkip(s, 'a:en_ru');
