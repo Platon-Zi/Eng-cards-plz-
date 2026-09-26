@@ -64,7 +64,7 @@ function legacyCard(id, word, translation, box, batchName) {
 }
 
 async function main() {
-  const env = await createDomEnv({ label: 'backup', fixedDate: TODAY, loadTheme: false });
+  const env = await createDomEnv({ label: 'backup', fixedDate: TODAY, loadTheme: false, stateFixture: 'realdata-198' });
   const w = env.window, d = w.document;
 
   const before = env.snapshotState();

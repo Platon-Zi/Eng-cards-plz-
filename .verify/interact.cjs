@@ -10,7 +10,9 @@
 // Exits non-zero on any failure. Final line: `PASS n/m` or `FAIL n/m (…)`.
 //
 // Environments:
-//   env1 — real data/leitner_data.json, fixed date 2026-09-17  (dashboard,
+//   env1 — замороженный снимок реальных данных (fixtures/realdata-198.json,
+//          август 2026; живой data/leitner_data.json дрейфует вместе с прогрессом
+//          пользователя), fixed date 2026-09-17  (dashboard,
 //          dictionary, edit modal, delete, practice session, grading walk,
 //          double-grade guard, undo, skip, keyboard, themechange)
 //   env2 — crafted 7-card state with known vectors                (exact
@@ -184,7 +186,7 @@ const dd = (n) => SRS.addDays(T, n);
 
   let env = null;
   try {
-    env = await boot({ fixedDate: T, label: 'real-data' });
+    env = await boot({ fixedDate: T, label: 'real-data', stateFixture: 'realdata-198' });
   } catch (e) {
     runner.t('env1 boots (real data, srs.js before app.js, initApp completes)', false, e.message);
   }

@@ -35,9 +35,20 @@ try {
 // scope: top-level `let appState` из app.js виден из datacare.js. В jsdom
 // отдельные w.eval() НЕ разделяют let, поэтому склеиваем все шесть скриптов
 // в один eval — это воспроизводит браузерную семантику ровно.
-const SRC = ['data/leitner_data.js', 'srs.js', 'app.js', 'theme.js', 'polish.js', 'datacare.js']
-  .map(f => '/*== ' + f + ' ==*/\n' + fs.readFileSync(path.join(ROOT, f), 'utf8'))
-  .join('\n;\n');
+// Данные: замороженный августовский снимок (fixtures/realdata-198) вместо живого
+// data/leitner_data.js — живой файл синхронизируется с прогрессом пользователя,
+// а поведенческие проверки (миссия, тултипы) зависят от глубины очереди на
+// фиксированную дату и обязаны быть детерминированными.
+const DATA_SCRIPT = 'window.LEITNER_DATA = ' + fs.readFileSync(path.join(__dirname, 'fixtures', 'realdata-198.json'), 'utf8')
+  .replace(/</g, '\\u003c')
+  .replace(/\u2028/g, '\\u2028')
+  .replace(/\u2029/g, '\\u2029') + ';';
+const SRC = [
+  '/*== data/leitner_data.js (fixture realdata-198) ==*/\n' + DATA_SCRIPT
+].concat(
+  ['srs.js', 'app.js', 'theme.js', 'polish.js', 'datacare.js']
+    .map(f => '/*== ' + f + ' ==*/\n' + fs.readFileSync(path.join(ROOT, f), 'utf8'))
+).join('\n;\n');
 try { w.eval(SRC); } catch (e) { errors.push('bundle eval: ' + e.message); }
 
 const wait = ms => new Promise(r => setTimeout(r, ms));

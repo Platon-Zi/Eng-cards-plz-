@@ -175,6 +175,10 @@ function makeCanvasContextStub() {
  *                    Omit to load the real data file.
  *   stateFixture   — 'legacy-198': inject .verify/fixtures/legacy-198.json
  *                    (schema 1, BOM'd) instead — exercises startup migration.
+ *                    'realdata-198': frozen snapshot of the user's real data
+ *                    (Aug 2026) — deterministic stand-in for data/leitner_data.js;
+ *                    the live file syncs with the user's progress and its
+ *                    queue depths drift, so behavioral suites must not boot it.
  *   fixedDate      — 'YYYY-MM-DD': pin window.Date to that LOCAL calendar day
  *                    (noon), so SRS.todayString() and everything derived from
  *                    "today" is deterministic. null = real clock.
@@ -227,6 +231,11 @@ async function createDomEnv(opts) {
   if (opts.state) injectedState = deepClone(opts.state);
   else if (opts.stateFixture === 'legacy-198') {
     injectedState = loadJson(path.join(VERIFY_DIR, 'fixtures', 'legacy-198.json'));
+  } else if (opts.stateFixture === 'realdata-198') {
+    // Замороженный августовский снимок реальных данных: живой data/leitner_data.js
+    // синхронизируется с прогрессом пользователя — поведенческие сюиты обязаны
+    // бутиться на детерминированном наборе.
+    injectedState = loadJson(path.join(VERIFY_DIR, 'fixtures', 'realdata-198.json'));
   }
   if (injectedState) {
     // JSON as a JS literal: escape '<' (kills any </script> sequence) and the
