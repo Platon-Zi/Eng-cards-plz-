@@ -92,7 +92,9 @@
     maxOverdueDisplay: 365,
     shrinkThreshold: 0.8,    // страж массовой потери данных
     penalizeArchive: false,  // миграция: штрафовать и архивные слова?
-    duePolicy: 'stagger'     // 'stagger' = долг просрочки один раз на слово | 'fresh' = всё с сегодняшнего дня
+    duePolicy: 'stagger',    // 'stagger' = долг просрочки один раз на слово | 'fresh' = всё с сегодняшнего дня
+    balanceTarget: 120,      // (22.09) дневная цель повторений: разгрузка пиков ранним подтягом
+    balanceEarliness: 0.5    // (22.09) доля пройденного интервала, с которой слово можно тянуть раньше (0.5 = «половина» → 7д тянем с 4-го дня)
   };
 
   /* Мёртвые поля старой модели: не сериализуются никогда, вырезаются при нормализации. */
@@ -650,18 +652,62 @@
     var onlyGroup = (opts.group && opts.group !== 'all') ? String(opts.group).toUpperCase() : null;
     var onlyDir = opts.direction ? normalizeDir(opts.direction) : null;
     var items = [];
+    var future = [];   // (22.09) кандидаты РАННЕГО подтяга для балансировки дня
+
+    var factor = Number.isFinite(opts.balanceEarliness)
+      ? Math.min(1, Math.max(0, opts.balanceEarliness))
+      : DEFAULTS.balanceEarliness;
 
     cardList(cards).forEach(function (card) {
       if (isBank(card)) return;                                  // ПРАВИЛО 1: банк игнорируется
       if (skip && skip.has(card.id)) return;
       if (onlyGroup && derivedGroup(card) !== onlyGroup) return;
-      dueDirections(card, today).forEach(function (dir) {
+      DIRECTIONS.forEach(function (dir) {
         if (onlyDir && onlyDir !== dir) return;
-        items.push(makeItem(card, dir, today, salt, 'review'));
+        if (isDirectionDue(card, dir, today)) {
+          items.push(makeItem(card, dir, today, salt, 'review'));
+          return;
+        }
+        if (!opts.balance) return;                               // балансировка — opt-in: без флага очередь ровно как раньше
+        // (22.09, фидбек «70 в один день, 250 в другой») Балансировка дня:
+        // сторону можно подтянуть РАНЬШЕ дедлайна, если до него осталось
+        // ≤ (1 − factor)·interval (правило половины: интервал 7 → тянем с 4-го
+        // дня, ровно пример пользователя «на 4-тый день вместо недели»).
+        // ОТКЛАДЫВАТЬ позже дедлайна нельзя — просроченное обязано выйти в срок.
+        var dueDate = directionDueDate(card, dir);
+        if (dueDate === null) return;
+        var wait = diffDays(dueDate, today);
+        if (wait === null || wait <= 0) return;
+        var interval = intervalForLevel(directionLevel(card, dir));
+        if (interval < 2) return;                                // L0/L1: интервалы 0/1 — подтягивать нечего
+        if (wait > (1 - factor) * interval) return;
+        var it = makeItem(card, dir, today, salt, 'review');
+        it.early = true;
+        it.daysEarly = wait;
+        future.push(it);
       });
     });
 
-    return applyLimit(spreadSameCard(dedupeByKey(items).sort(compareItems), opts.gap), opts.limit);
+    var out = spreadSameCard(dedupeByKey(items).sort(compareItems), opts.gap);
+    if (opts.balance) {
+      var target = Number.isFinite(opts.balanceTarget) ? Math.max(0, Math.round(opts.balanceTarget)) : DEFAULTS.balanceTarget;
+      var need = target - out.length;
+      if (need > 0 && future.length) {
+        // Кого тянем раньше: сначала ТРУДНЫЕ слова — уровень ниже = свежий
+        // провал («забыл» роняет уровень на 1–2), идеально запоминающиеся
+        // (высокий уровень) добираются в последнюю очередь. При равенстве —
+        // наименее «ранняя» запись (меньше ждать до дедлайна).
+        future.sort(function (a, b) {
+          var lv = (a.level || 0) - (b.level || 0);
+          if (lv !== 0) return lv;
+          var w = (a.daysEarly || 0) - (b.daysEarly || 0);
+          if (w !== 0) return w;
+          return compareItems(a, b);
+        });
+        out = spreadSameCard(out.concat(future.slice(0, need)), opts.gap);
+      }
+    }
+    return applyLimit(out, opts.limit);
   }
 
   /**

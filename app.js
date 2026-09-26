@@ -1542,8 +1542,16 @@ function renderDashboard() {
 
   const heroDue = document.getElementById('hero-due-text');
   if (heroDue) {
+    // (22.09) Балансировка дня: Practice добирает до цели (120) «ранние» записи.
+    // Показываем честно, сколько подтянуто — чтобы число на кнопке совпадало с сессией.
+    let earlyCount = 0;
+    try {
+      earlyCount = (SRS.buildReviewQueue(appState.cards, today, { balance: true }) || [])
+        .filter(it => it && it.early).length;
+    } catch (e) { /* очередь для счётчика не должна ломать дашборд */ }
     if (total === 0) heroDue.textContent = 'Your dictionary is empty. Add new words to begin!';
-    else if (dueCount > 0) heroDue.textContent = `Due now: ${dueCount} ${dueCount === 1 ? 'side' : 'sides'} across ${summary.dueCards} ${summary.dueCards === 1 ? 'word' : 'words'}`;
+    else if (dueCount > 0) heroDue.textContent = `Due now: ${dueCount} ${dueCount === 1 ? 'side' : 'sides'} across ${summary.dueCards} ${summary.dueCards === 1 ? 'word' : 'words'}` + (earlyCount > 0 ? ` · +${earlyCount} pulled early to smooth the load` : '');
+    else if (earlyCount > 0) heroDue.textContent = `No reviews overdue · ${earlyCount} pulled early to smooth the load`;
     else heroDue.textContent = 'Nothing due right now — every review is done 💪';
   }
 
@@ -1691,7 +1699,11 @@ function buildQueueForMode(mode, specificGroup, specificFilter, today) {
   }
 
   // 'system' / 'daily' / 'practice' — большая кнопка Practice: ровно то, что должно сегодня.
-  return SRS.buildReviewQueue(cards, today, queueOpts({ group: specificGroup || undefined }));
+  // (22.09, фидбек «70 в один день, 250 в другой») + балансировка дня: просроченное
+  // выходит как есть, а лёгкие дни добирают до дневной цели (120) «ранними»
+  // записями — трудные слова первыми. Пики не откладываются, а подтачиваются
+  // заранее: слово уровня 4 (интервал 7д) подтягивается с 4-го дня.
+  return SRS.buildReviewQueue(cards, today, queueOpts({ group: specificGroup || undefined, balance: true }));
 }
 
 // Update direction switcher UI to show active button
@@ -1980,9 +1992,17 @@ function renderCurrentCard() {
       pillEl.className = `card-level-pill grp-${chromeInfo.group.toLowerCase()}`;
     }
     if (dueEl) {
-      dueEl.textContent = chromeInfo.phrase;
-      dueEl.classList.toggle('is-overdue', chromeInfo.bucket === 'overdue');
-      dueEl.dataset.overdue = chromeInfo.bucket === 'overdue' ? 'true' : 'false';
+      // (22.09) Балансировка: если запись подтянута раньше срока — говорим об
+      // этом прямо в строке срока, чтобы «почему это слово сегодня?» не было
+      // загадкой. Обычные записи видят прежнюю фразу.
+      let earlyPhrase = null;
+      try {
+        const cur = (typeof srsSession !== 'undefined' && srsSession) ? SRS.sessionCurrent(srsSession) : null;
+        if (cur && cur.early) earlyPhrase = `⏩ pulled early · due in ${cur.daysEarly || 1}d`;
+      } catch (e) { /* хром карточки не должен падать от сессии */ }
+      dueEl.textContent = earlyPhrase || chromeInfo.phrase;
+      dueEl.classList.toggle('is-overdue', !earlyPhrase && chromeInfo.bucket === 'overdue');
+      dueEl.dataset.overdue = (!earlyPhrase && chromeInfo.bucket === 'overdue') ? 'true' : 'false';
     }
   });
 

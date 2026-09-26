@@ -394,7 +394,7 @@ const dd = (n) => SRS.addDays(T, n);
       env.click('#btn-practice-group');
       await env.tick(40);
       t('training screen opened', env.activeScreen() === 'screen-training', env.activeScreen());
-      const want = env.evalIn(`SRS.buildReviewQueue(appState.cards, srsToday(), { seed: sessionSeed }).length`);
+      const want = env.evalIn(`SRS.buildReviewQueue(appState.cards, srsToday(), { seed: sessionSeed, balance: true }).length`);
       const total = (await currentItem(env)).total;
       t(`session queue length == SRS.buildReviewQueue (${want})`, total === want, `${total} vs ${want}`);
       env.key('Escape');
@@ -407,7 +407,7 @@ const dd = (n) => SRS.addDays(T, n);
     const walkAnswers = ['easy', 'hard', 'easy', 'easy', 'hard', 'easy', 'easy', 'hard'];
     await runner.section('7. main Practice button: queue == kernel, walk with real clicks', async ({ t }) => {
       const cardsNow = env.snapshotState().cards;              // AFTER edit+delete mutations
-      const expectedQ = SRS.buildReviewQueue(deepClone(cardsNow), T, { seed: T });
+      const expectedQ = SRS.buildReviewQueue(deepClone(cardsNow), T, { seed: T, balance: true });
       env.click('#btn-hero-start-practice');
       await env.tick(40);
       t('hero Practice opens the training screen', env.activeScreen() === 'screen-training', env.activeScreen());
@@ -625,7 +625,7 @@ const dd = (n) => SRS.addDays(T, n);
     mkCard('gv_t1', 'tundra alpha', 'тундра альфа', 'ACTIVE', 3, dd(0), 5, dd(10)),   // easy → L4
     mkCard('gv_t2', 'bravo ridge', 'гребень браво', 'ACTIVE', 2, dd(-3), 4, dd(5)),   // hard → frozen L2
     mkCard('gv_t3', 'charlie pit', 'яма чарли', 'ACTIVE', 3, dd(0), 1, dd(7)),        // again → L1 (≤3) + requeue
-    mkCard('gv_t4', 'delta wave', 'волна дельта', 'ACTIVE', 5, dd(0), 5, dd(2)),      // again → L2 (>3) + requeue
+    mkCard('gv_t4', 'delta wave', 'волна дельта', 'ACTIVE', 5, dd(0), 5, dd(8)),      // again → L2 (>3) + requeue; ru_en +8: вне зоны раннего подтяга (половина интервала 14 = 7)
     mkCard('gv_t5', 'echo peak', 'пик эхо', 'ACTIVE', 6, dd(0), 6, dd(20)),           // easy → stays L6 (ceiling)
     mkCard('gv_t6', 'foxtrot dual', 'двойной фокстрот', 'ACTIVE', 1, dd(-1), 2, dd(-2)), // BOTH sides due
     mkCard('gv_t7', 'golf bank', 'банк гольф', 'BANK', 0, null, 0, null),             // BANK: never in review
@@ -662,7 +662,7 @@ const dd = (n) => SRS.addDays(T, n);
     env2.click('#btn-hero-start-practice');
     await env2.tick(40);
     const liveCards = env2.snapshotState().cards;
-    const expectedQ = SRS.buildReviewQueue(deepClone(liveCards), T, { seed: T });
+    const expectedQ = SRS.buildReviewQueue(deepClone(liveCards), T, { seed: T, balance: true });
     const actualKeys = env2.evalJson(`JSON.stringify(currentTrainingQueue.map(i => i.key))`);
     console.log(`   ℹ️ crafted review queue (${expectedQ.length}): ${expectedQ.map((i) => i.key).join(', ')}`);
     t('crafted queue == SRS.buildReviewQueue (order included)',
@@ -796,7 +796,7 @@ const dd = (n) => SRS.addDays(T, n);
       `toast container: "${env3.document.getElementById('toast-container').textContent.slice(0, 120)}" — showToast(…'Your base was upgraded…') sits behind the same firstMigration flag`);
 
     const sum = SRS.summarize(deepClone(state.cards), T);
-    console.log(`   ℹ️ migrated groups ${JSON.stringify(sum.groups)} · dueEntries ${sum.dueEntries} · queue ${env3.evalIn(`SRS.buildReviewQueue(appState.cards, srsToday(), { seed: sessionSeed }).length`)}`);
+    console.log(`   ℹ️ migrated groups ${JSON.stringify(sum.groups)} · dueEntries ${sum.dueEntries} · queue ${env3.evalIn(`SRS.buildReviewQueue(appState.cards, srsToday(), { seed: sessionSeed, balance: true }).length`)}`);
     let ok = true, det = [];
     for (const b of BUCKETS) {
       const got = env3.document.getElementById(`kg-count-${b}`).textContent;

@@ -264,8 +264,9 @@ describe('module surface & purity', () => {
     assert.deepEqual(J(SRS.DEFAULTS), {
       sameCardGap: 3, learnBatchLimit: 20, requeueDelay: 4, maxRepeatsPerSession: 1,
       reviewChunkSize: 30, maxOverdueDisplay: 365, shrinkThreshold: 0.8,
-      penalizeArchive: false, duePolicy: 'stagger'
-    }, 'rule 8/12/18/19: DEFAULTS pin');
+      penalizeArchive: false, duePolicy: 'stagger',
+      balanceTarget: 120, balanceEarliness: 0.5
+    }, 'rule 8/12/18/19 + balance: DEFAULTS pin');
   });
 
   test('surface: every exported constant container is deep-frozen', () => {
@@ -2379,6 +2380,59 @@ describe('session container', () => {
     const s4 = SRS.createSession([it('x'), it('y'), it('z'), it('q'), it('m'), it('n')], { today: TODAY });
     SRS.sessionRequeue(s4, s4.items[0]);
     assert.equal(s4.items[4].key, 'x:en_ru', 'rule 19b: без конфликта вставка прежняя — cursor+4');
+  });
+
+  test('balance (22.09): разгрузка пиков тянет ранние записи, трудные слова первыми', () => {
+    /* en_ru — объект теста; ru_en везде «в далеке и вне зоны подтяга» (L6 + 20д). */
+    const mk = (id, lvl, off) => ({
+      id, word: id, status: 'ACTIVE',
+      level_en_ru: lvl, next_review_en_ru: SRS.addDays(TODAY, off),
+      level_ru_en: 6, next_review_ru_en: SRS.addDays(TODAY, 20)
+    });
+    const cards = [
+      mk('a', 4, 0),      // просрочена сегодня
+      mk('b', 3, -1),     // просрочена вчера
+      mk('hard', 2, 1),   // трудное: L2 (интервал 2), ждать 1 ≤ 1 → тянется
+      mk('easy', 5, 7),   // лёгкое: L5 (интервал 14), ждать 7 ≤ 7 → тянется
+      mk('far', 4, 5)     // L4 (интервал 7), ждать 5 > 3.5 → НЕ тянется (правило половины)
+    ];
+
+    /* без флага (по умолчанию) — очередь ровно как раньше, все прежние вызывающие целы */
+    const strict = SRS.buildReviewQueue(cards, TODAY, {});
+    assert.equal(strict.length, 2, 'balance: без флага — только просроченные');
+    assert.ok(strict.every(x => !x.early), 'balance: без флага нет ранних записей');
+
+    /* цель 3: добор 1 — трудное (L2) обходит лёгкое (L5) */
+    const q3 = SRS.buildReviewQueue(cards, TODAY, { balance: true, balanceTarget: 3 });
+    assert.equal(q3.length, 3, 'balance: добор до цели дня');
+    const early3 = q3.filter(x => x.early);
+    assert.equal(early3.length, 1, 'balance: одна ранняя запись');
+    assert.equal(early3[0].key, 'hard:en_ru', 'balance: трудное слово (низкий уровень) тянется первым');
+    assert.equal(early3[0].daysEarly, 1, 'balance: daysEarly = сколько оставалось ждать');
+    assert.ok(early3[0].kind === 'review', 'balance: ранняя запись — обычный review (kind не менялся)');
+
+    /* цель 4: добор 2 — трудное + лёгкое; far не тянется никогда */
+    const q4 = SRS.buildReviewQueue(cards, TODAY, { balance: true, balanceTarget: 4 });
+    assert.equal(q4.length, 4, 'balance: цель 4');
+    assert.deepEqual(q4.filter(x => x.early).map(x => x.key).sort(), ['easy:en_ru', 'hard:en_ru'],
+      'balance: трудное + лёгкое добраны');
+    assert.ok(!q4.some(x => x.key === 'far:en_ru'), 'balance: 5д > половины интервала 7 — не тянется');
+
+    /* цель огромная: правило половины не обходится объёмом добора */
+    const qBig = SRS.buildReviewQueue(cards, TODAY, { balance: true, balanceTarget: 50 });
+    assert.equal(qBig.length, 4, 'balance: цель 50, но добор ограничен правилом половины');
+    assert.ok(!qBig.some(x => x.key === 'far:en_ru'), 'balance: far не тянется даже под огромную цель');
+
+    /* пик больше цели: просроченное НЕ откладывается, добора нет */
+    const spike = SRS.buildReviewQueue(
+      [mk('a', 4, 0), mk('b', 3, -1), mk('c', 4, -2), mk('d', 4, 0), mk('e', 4, 0)],
+      TODAY, { balance: true, balanceTarget: 2 });
+    assert.equal(spike.length, 5, 'balance: просроченное выходит целиком — отложить нельзя');
+    assert.ok(spike.every(x => !x.early), 'balance: сверх цели ранних нет');
+
+    /* earliness можно ослабить/усилить: 0.25 → ждать ≤ 75% интервала */
+    const qLoose = SRS.buildReviewQueue(cards, TODAY, { balance: true, balanceTarget: 50, balanceEarliness: 0.25 });
+    assert.ok(qLoose.some(x => x.key === 'far:en_ru'), 'balance: earliness 0.25 → far (5 ≤ 5.25) тоже тянется');
   });
 
   test('rule 19: sessionSkip — first skip moves to tail, second removes', () => {
